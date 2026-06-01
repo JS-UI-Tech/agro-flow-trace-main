@@ -1,0 +1,45 @@
+name: Deploy Frontend (Cloudflare Workers)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "wrangler.jsonc"
+      - "vite.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Skip cleanly until the Cloudflare token is configured as a repo secret.
+    if: ${{ vars.CLOUDFLARE_ENABLED == 'true' }}
+    permissions:
+      contents: read
+    env:
+      VITE_API_URL: https://agro-trace.jsui.digital
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.13"
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy -c dist/server/wrangler.json

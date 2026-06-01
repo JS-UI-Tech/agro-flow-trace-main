@@ -12,11 +12,15 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as WorkflowsRouteImport } from './routes/workflows'
 import { Route as WorkflowTemplatesRouteImport } from './routes/workflow-templates'
 import { Route as WasteRouteImport } from './routes/waste'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as TwoFactorRouteImport } from './routes/two-factor'
 import { Route as TraceabilityRouteImport } from './routes/traceability'
 import { Route as SuppliersRouteImport } from './routes/suppliers'
 import { Route as StorageRouteImport } from './routes/storage'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ReturnsRouteImport } from './routes/returns'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RecipesRouteImport } from './routes/recipes'
 import { Route as RecallsRouteImport } from './routes/recalls'
@@ -25,11 +29,14 @@ import { Route as QualityControlRouteImport } from './routes/quality-control'
 import { Route as ProductionPlanningRouteImport } from './routes/production-planning'
 import { Route as ProductionBatchesRouteImport } from './routes/production-batches'
 import { Route as PackagingRouteImport } from './routes/packaging'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FinishedGoodsRouteImport } from './routes/finished-goods'
 import { Route as DispatchRouteImport } from './routes/dispatch'
 import { Route as CustomerReceivingRouteImport } from './routes/customer-receiving'
 import { Route as CompanyRouteImport } from './routes/company'
 import { Route as AuditRouteImport } from './routes/audit'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecipesEditorRouteImport } from './routes/recipes_.editor'
 import { Route as PackagingNewRouteImport } from './routes/packaging_.new'
@@ -51,9 +58,19 @@ const WasteRoute = WasteRouteImport.update({
   path: '/waste',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyRoute = VerifyRouteImport.update({
   id: '/verify',
   path: '/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TwoFactorRoute = TwoFactorRouteImport.update({
+  id: '/two-factor',
+  path: '/two-factor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TraceabilityRoute = TraceabilityRouteImport.update({
@@ -71,9 +88,19 @@ const StorageRoute = StorageRouteImport.update({
   path: '/storage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReturnsRoute = ReturnsRouteImport.update({
   id: '/returns',
   path: '/returns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -116,6 +143,16 @@ const PackagingRoute = PackagingRouteImport.update({
   path: '/packaging',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FinishedGoodsRoute = FinishedGoodsRouteImport.update({
   id: '/finished-goods',
   path: '/finished-goods',
@@ -139,6 +176,11 @@ const CompanyRoute = CompanyRouteImport.update({
 const AuditRoute = AuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -170,11 +212,14 @@ const PackagingRunRunIdRoute = PackagingRunRunIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/audit': typeof AuditRoute
   '/company': typeof CompanyRoute
   '/customer-receiving': typeof CustomerReceivingRoute
   '/dispatch': typeof DispatchRoute
   '/finished-goods': typeof FinishedGoodsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/packaging': typeof PackagingRoute
   '/production-batches': typeof ProductionBatchesRoute
   '/production-planning': typeof ProductionPlanningRoute
@@ -183,11 +228,15 @@ export interface FileRoutesByFullPath {
   '/recalls': typeof RecallsRoute
   '/recipes': typeof RecipesRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/returns': typeof ReturnsRoute
+  '/signup': typeof SignupRoute
   '/storage': typeof StorageRoute
   '/suppliers': typeof SuppliersRoute
   '/traceability': typeof TraceabilityRoute
+  '/two-factor': typeof TwoFactorRoute
   '/verify': typeof VerifyRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/waste': typeof WasteRoute
   '/workflow-templates': typeof WorkflowTemplatesRoute
   '/workflows': typeof WorkflowsRoute
@@ -198,11 +247,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/audit': typeof AuditRoute
   '/company': typeof CompanyRoute
   '/customer-receiving': typeof CustomerReceivingRoute
   '/dispatch': typeof DispatchRoute
   '/finished-goods': typeof FinishedGoodsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/packaging': typeof PackagingRoute
   '/production-batches': typeof ProductionBatchesRoute
   '/production-planning': typeof ProductionPlanningRoute
@@ -211,11 +263,15 @@ export interface FileRoutesByTo {
   '/recalls': typeof RecallsRoute
   '/recipes': typeof RecipesRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/returns': typeof ReturnsRoute
+  '/signup': typeof SignupRoute
   '/storage': typeof StorageRoute
   '/suppliers': typeof SuppliersRoute
   '/traceability': typeof TraceabilityRoute
+  '/two-factor': typeof TwoFactorRoute
   '/verify': typeof VerifyRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/waste': typeof WasteRoute
   '/workflow-templates': typeof WorkflowTemplatesRoute
   '/workflows': typeof WorkflowsRoute
@@ -227,11 +283,14 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/audit': typeof AuditRoute
   '/company': typeof CompanyRoute
   '/customer-receiving': typeof CustomerReceivingRoute
   '/dispatch': typeof DispatchRoute
   '/finished-goods': typeof FinishedGoodsRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
   '/packaging': typeof PackagingRoute
   '/production-batches': typeof ProductionBatchesRoute
   '/production-planning': typeof ProductionPlanningRoute
@@ -240,11 +299,15 @@ export interface FileRoutesById {
   '/recalls': typeof RecallsRoute
   '/recipes': typeof RecipesRoute
   '/reports': typeof ReportsRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/returns': typeof ReturnsRoute
+  '/signup': typeof SignupRoute
   '/storage': typeof StorageRoute
   '/suppliers': typeof SuppliersRoute
   '/traceability': typeof TraceabilityRoute
+  '/two-factor': typeof TwoFactorRoute
   '/verify': typeof VerifyRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/waste': typeof WasteRoute
   '/workflow-templates': typeof WorkflowTemplatesRoute
   '/workflows': typeof WorkflowsRoute
@@ -257,11 +320,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/audit'
     | '/company'
     | '/customer-receiving'
     | '/dispatch'
     | '/finished-goods'
+    | '/forgot-password'
+    | '/login'
     | '/packaging'
     | '/production-batches'
     | '/production-planning'
@@ -270,11 +336,15 @@ export interface FileRouteTypes {
     | '/recalls'
     | '/recipes'
     | '/reports'
+    | '/reset-password'
     | '/returns'
+    | '/signup'
     | '/storage'
     | '/suppliers'
     | '/traceability'
+    | '/two-factor'
     | '/verify'
+    | '/verify-email'
     | '/waste'
     | '/workflow-templates'
     | '/workflows'
@@ -285,11 +355,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/audit'
     | '/company'
     | '/customer-receiving'
     | '/dispatch'
     | '/finished-goods'
+    | '/forgot-password'
+    | '/login'
     | '/packaging'
     | '/production-batches'
     | '/production-planning'
@@ -298,11 +371,15 @@ export interface FileRouteTypes {
     | '/recalls'
     | '/recipes'
     | '/reports'
+    | '/reset-password'
     | '/returns'
+    | '/signup'
     | '/storage'
     | '/suppliers'
     | '/traceability'
+    | '/two-factor'
     | '/verify'
+    | '/verify-email'
     | '/waste'
     | '/workflow-templates'
     | '/workflows'
@@ -313,11 +390,14 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/audit'
     | '/company'
     | '/customer-receiving'
     | '/dispatch'
     | '/finished-goods'
+    | '/forgot-password'
+    | '/login'
     | '/packaging'
     | '/production-batches'
     | '/production-planning'
@@ -326,11 +406,15 @@ export interface FileRouteTypes {
     | '/recalls'
     | '/recipes'
     | '/reports'
+    | '/reset-password'
     | '/returns'
+    | '/signup'
     | '/storage'
     | '/suppliers'
     | '/traceability'
+    | '/two-factor'
     | '/verify'
+    | '/verify-email'
     | '/waste'
     | '/workflow-templates'
     | '/workflows'
@@ -342,11 +426,14 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   AuditRoute: typeof AuditRoute
   CompanyRoute: typeof CompanyRoute
   CustomerReceivingRoute: typeof CustomerReceivingRoute
   DispatchRoute: typeof DispatchRoute
   FinishedGoodsRoute: typeof FinishedGoodsRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LoginRoute: typeof LoginRoute
   PackagingRoute: typeof PackagingRoute
   ProductionBatchesRoute: typeof ProductionBatchesRoute
   ProductionPlanningRoute: typeof ProductionPlanningRoute
@@ -355,11 +442,15 @@ export interface RootRouteChildren {
   RecallsRoute: typeof RecallsRoute
   RecipesRoute: typeof RecipesRoute
   ReportsRoute: typeof ReportsRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ReturnsRoute: typeof ReturnsRoute
+  SignupRoute: typeof SignupRoute
   StorageRoute: typeof StorageRoute
   SuppliersRoute: typeof SuppliersRoute
   TraceabilityRoute: typeof TraceabilityRoute
+  TwoFactorRoute: typeof TwoFactorRoute
   VerifyRoute: typeof VerifyRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   WasteRoute: typeof WasteRoute
   WorkflowTemplatesRoute: typeof WorkflowTemplatesRoute
   WorkflowsRoute: typeof WorkflowsRoute
@@ -392,11 +483,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WasteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify': {
       id: '/verify'
       path: '/verify'
       fullPath: '/verify'
       preLoaderRoute: typeof VerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/two-factor': {
+      id: '/two-factor'
+      path: '/two-factor'
+      fullPath: '/two-factor'
+      preLoaderRoute: typeof TwoFactorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/traceability': {
@@ -420,11 +525,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StorageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/returns': {
       id: '/returns'
       path: '/returns'
       fullPath: '/returns'
       preLoaderRoute: typeof ReturnsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -483,6 +602,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PackagingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/finished-goods': {
       id: '/finished-goods'
       path: '/finished-goods'
@@ -516,6 +649,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -558,11 +698,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   AuditRoute: AuditRoute,
   CompanyRoute: CompanyRoute,
   CustomerReceivingRoute: CustomerReceivingRoute,
   DispatchRoute: DispatchRoute,
   FinishedGoodsRoute: FinishedGoodsRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  LoginRoute: LoginRoute,
   PackagingRoute: PackagingRoute,
   ProductionBatchesRoute: ProductionBatchesRoute,
   ProductionPlanningRoute: ProductionPlanningRoute,
@@ -571,11 +714,15 @@ const rootRouteChildren: RootRouteChildren = {
   RecallsRoute: RecallsRoute,
   RecipesRoute: RecipesRoute,
   ReportsRoute: ReportsRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ReturnsRoute: ReturnsRoute,
+  SignupRoute: SignupRoute,
   StorageRoute: StorageRoute,
   SuppliersRoute: SuppliersRoute,
   TraceabilityRoute: TraceabilityRoute,
+  TwoFactorRoute: TwoFactorRoute,
   VerifyRoute: VerifyRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   WasteRoute: WasteRoute,
   WorkflowTemplatesRoute: WorkflowTemplatesRoute,
   WorkflowsRoute: WorkflowsRoute,
@@ -587,3 +734,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

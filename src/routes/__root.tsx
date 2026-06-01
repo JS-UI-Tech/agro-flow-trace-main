@@ -4,14 +4,26 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { Bell, Search } from "lucide-react";
+import { useSession, signOut } from "@/lib/auth-client";
+import { Bell, Search, LogOut } from "lucide-react";
+
+// Routes rendered without the app chrome (bare, centered).
+const AUTH_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/two-factor"];
+// Routes reachable without a session (auth pages + the public QR verify page).
+const PUBLIC_PATHS = [...AUTH_PATHS, "/verify"];
+
+function isMatch(pathname: string, list: string[]) {
+  return list.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
 
 function NotFoundComponent() {
   return (
@@ -115,46 +127,92 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function initials(name?: string, email?: string) {
+  const src = (name || email || "?").trim();
+  const parts = src.split(/[\s@.]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <div className="flex flex-1 flex-col">
-            <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur">
-              <SidebarTrigger />
-              <div className="relative hidden flex-1 max-w-md md:block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  className="h-9 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
-                  placeholder="Search batches, lots, suppliers, products…"
-                />
-              </div>
-              <div className="ml-auto flex items-center gap-3">
-                <button className="relative rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
-                </button>
-                <div className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-                    JO
-                  </div>
-                  <div className="hidden text-xs leading-tight sm:block">
-                    <div className="font-medium text-foreground">J. Otieno</div>
-                    <div className="text-muted-foreground">Production Supervisor</div>
-                  </div>
-                </div>
-              </div>
-            </header>
-            <main className="flex-1">
-              <Outlet />
-            </main>
-          </div>
-        </div>
-      </SidebarProvider>
+      <AppBody />
     </QueryClientProvider>
+  );
+}
+
+function AppBody() {
+  const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: session, isPending } = useSession();
+
+  const isAuthRoute = isMatch(pathname, AUTH_PATHS);
+  const isPublicRoute = isMatch(pathname, PUBLIC_PATHS);
+
+  // Guard: send unauthenticated users to the login page (client-side).
+  useEffect(() => {
+    if (!isPending && !session && !isPublicRoute) {
+      router.navigate({ to: "/login", search: { redirect: pathname } });
+    }
+  }, [isPending, session, isPublicRoute, pathname, router]);
+
+  // Bare layout for auth pages (no sidebar / header).
+  if (isAuthRoute) return <Outlet />;
+
+  // While redirecting an unauthenticated user away from a protected route.
+  if (!isPending && !session && !isPublicRoute) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Redirecting…</div>;
+  }
+
+  const user = session?.user;
+  const role = (user as { role?: string } | undefined)?.role;
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex flex-1 flex-col">
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur">
+            <SidebarTrigger />
+            <div className="relative hidden flex-1 max-w-md md:block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                className="h-9 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring/40"
+                placeholder="Search batches, lots, suppliers, products…"
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-3">
+              <button className="relative rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
+                <Bell className="h-4 w-4" />
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary" />
+              </button>
+              <Link
+                to="/account"
+                className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 hover:bg-accent"
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                  {initials(user?.name, user?.email)}
+                </div>
+                <div className="hidden text-xs leading-tight sm:block">
+                  <div className="font-medium text-foreground">{user?.name ?? user?.email ?? "Account"}</div>
+                  <div className="text-muted-foreground">{role ?? "—"}</div>
+                </div>
+              </Link>
+              <button
+                onClick={() => signOut().then(() => router.navigate({ to: "/login" }))}
+                title="Sign out"
+                className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
+          <main className="flex-1">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
