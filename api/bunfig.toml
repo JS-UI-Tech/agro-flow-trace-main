@@ -1,0 +1,3 @@
+# Backend installs run in CI / Coolify build with no human in the loop, so the
+# 24h supply-chain guard (used by the frontend) is intentionally omitted here.
+[install]
