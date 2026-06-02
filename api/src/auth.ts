@@ -66,17 +66,15 @@ export const auth = betterAuth({
 
   advanced: {
     database: { generateId: () => Bun.randomUUIDv7() },
-    // When a shared parent domain is configured, the frontend and API are
-    // same-site → use a domain-scoped cookie with SameSite=Lax. Otherwise
-    // (truly cross-site) fall back to SameSite=None;Secure.
+    // Frontend (agro-trace.jsui.digital) and API (agro-bk.jsui.digital) are
+    // the same site (jsui.digital), so a SameSite=Lax cookie is sent on
+    // credentialed cross-subdomain fetches and is immune to third-party-cookie
+    // blocking. If a shared cookie domain is configured, scope it across
+    // subdomains; otherwise it stays host-only on the API.
     ...(env.cookieDomain
       ? { crossSubDomainCookies: { enabled: true, domain: env.cookieDomain } }
       : {}),
-    defaultCookieAttributes: env.cookieDomain
-      ? { sameSite: "lax", secure: env.isProd, httpOnly: true }
-      : env.isProd
-        ? { sameSite: "none", secure: true, httpOnly: true }
-        : { sameSite: "lax", secure: false, httpOnly: true },
+    defaultCookieAttributes: { sameSite: "lax", secure: env.isProd, httpOnly: true },
   },
 
   plugins: [

@@ -7,7 +7,7 @@ import { adminClient, twoFactorClient, emailOTPClient } from "better-auth/client
  */
 const API_URL =
   (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_URL ||
-  "https://api.agro-trace.jsui.digital";
+  "https://agro-bk.jsui.digital";
 
 export const authClient = createAuthClient({
   baseURL: API_URL,
