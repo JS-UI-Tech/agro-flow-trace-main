@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { suppliers } from "@/lib/mock-data";
+import { useSuppliers, type Supplier } from "@/hooks/api";
 import { useState } from "react";
 import {
   Sheet,
@@ -26,14 +26,13 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
-type Supplier = (typeof suppliers)[number];
-
 export const Route = createFileRoute("/suppliers")({
   head: () => ({ meta: [{ title: "Suppliers — AgroTrace" }] }),
   component: SuppliersPage,
 });
 
 function SuppliersPage() {
+  const { data: suppliers = [] } = useSuppliers();
   const [addOpen, setAddOpen] = useState(false);
   const [active, setActive] = useState<Supplier | null>(null);
   const [editing, setEditing] = useState(false);

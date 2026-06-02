@@ -29,14 +29,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import {
-  productionByProduct,
-  qcTrend,
-  expiryRisk,
-  dispatchByCustomer,
-  wasteByReason,
-  productionBatches,
-} from "@/lib/mock-data";
+import { useDashboard } from "@/hooks/api";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -70,19 +63,28 @@ export const Route = createFileRoute("/")({
 const PIE_COLORS = ["hsl(0 72% 51%)", "hsl(38 92% 50%)", "hsl(152 60% 40%)"];
 
 function Index() {
+  const { data: dash } = useDashboard();
+  const productionByProduct = dash?.productionByProduct ?? [];
+  const qcTrend = dash?.qcTrend ?? [];
+  const expiryRisk = dash?.expiryRisk ?? [];
+  const dispatchByCustomer = dash?.dispatchByCustomer ?? [];
+  const wasteByReason = dash?.wasteByReason ?? [];
+  const recentBatches = dash?.recentBatches ?? [];
+  const kpis = dash?.kpis;
+
   const [orderOpen, setOrderOpen] = useState(false);
 
   const handleExport = () => {
     const rows = [
       ["Metric", "Value"],
-      ["Active production batches", "12"],
-      ["Raw material lots today", "8"],
-      ["FG awaiting QC release", "6"],
-      ["Expiring stock (<30d)", "22"],
-      ["Open recall cases", "2"],
-      ["QC failures (7d)", "11"],
-      ["Dispatched this week", "42800"],
-      ["Supplier rejection rate", "3.1%"],
+      ["Active production batches", String(kpis?.activeBatches ?? "")],
+      ["Raw material lots today", String(kpis?.rawLotsToday ?? "")],
+      ["FG awaiting QC release", String(kpis?.fgAwaitingQc ?? "")],
+      ["Expiring stock (<30d)", String(kpis?.expiringStock ?? "")],
+      ["Open recall cases", String(kpis?.openRecalls ?? "")],
+      ["QC failures (7d)", String(kpis?.qcFailures ?? "")],
+      ["Dispatched this week", String(kpis?.dispatchedThisWeek ?? "")],
+      ["Supplier rejection rate", `${kpis?.supplierRejectionRate ?? ""}%`],
     ];
     const csv = rows.map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -122,14 +124,14 @@ function Index() {
       />
       <div className="space-y-6 p-6">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Active production batches" value={12} delta="+3 vs yesterday" trend="up" icon={Activity} />
-          <KpiCard label="Raw material lots today" value={8} delta="2 pending QC" trend="flat" icon={Wheat} />
-          <KpiCard label="FG awaiting QC release" value={6} delta="9,400 units" trend="flat" icon={PackageCheck} />
-          <KpiCard label="Expiring stock (<30d)" value={22} delta="+4 this week" trend="down" icon={Clock} />
-          <KpiCard label="Open recall cases" value={2} delta="1 high severity" trend="down" icon={AlertTriangle} />
-          <KpiCard label="QC failures (7d)" value={11} delta="−18% vs prior" trend="up" icon={XCircle} />
-          <KpiCard label="Dispatched this week" value="42,800" delta="units across 5 routes" trend="up" icon={Truck} />
-          <KpiCard label="Supplier rejection rate" value="3.1%" delta="target ≤ 4%" trend="up" icon={TrendingDown} />
+          <KpiCard label="Active production batches" value={kpis?.activeBatches ?? 0} delta="+3 vs yesterday" trend="up" icon={Activity} />
+          <KpiCard label="Raw material lots today" value={kpis?.rawLotsToday ?? 0} delta="2 pending QC" trend="flat" icon={Wheat} />
+          <KpiCard label="FG awaiting QC release" value={kpis?.fgAwaitingQc ?? 0} delta="9,400 units" trend="flat" icon={PackageCheck} />
+          <KpiCard label="Expiring stock (<30d)" value={kpis?.expiringStock ?? 0} delta="+4 this week" trend="down" icon={Clock} />
+          <KpiCard label="Open recall cases" value={kpis?.openRecalls ?? 0} delta="1 high severity" trend="down" icon={AlertTriangle} />
+          <KpiCard label="QC failures (7d)" value={kpis?.qcFailures ?? 0} delta="−18% vs prior" trend="up" icon={XCircle} />
+          <KpiCard label="Dispatched this week" value={(kpis?.dispatchedThisWeek ?? 0).toLocaleString()} delta="units across 5 routes" trend="up" icon={Truck} />
+          <KpiCard label="Supplier rejection rate" value={`${kpis?.supplierRejectionRate ?? 0}%`} delta="target ≤ 4%" trend="up" icon={TrendingDown} />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -214,7 +216,7 @@ function Index() {
           <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
             <h3 className="mb-4 text-sm font-semibold text-foreground">Live production batches</h3>
             <ul className="space-y-3">
-              {productionBatches.slice(0, 4).map((b) => (
+              {recentBatches.slice(0, 4).map((b) => (
                 <li key={b.id} className="flex items-start justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0">
                   <div>
                     <div className="text-sm font-medium text-foreground">{b.product}</div>

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { finishedGoods } from "@/lib/mock-data";
+import { useFinishedGoods } from "@/hooks/api";
 
 export const Route = createFileRoute("/finished-goods")({
   head: () => ({ meta: [{ title: "Finished Goods — AgroTrace" }] }),
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/finished-goods")({
 });
 
 function FGPage() {
+  const { data: finishedGoods = [] } = useFinishedGoods();
   return (
     <>
       <PageHeader title="Finished Goods" description="QC release and FEFO-ready inventory." actions={<><Button variant="outline">Release queue</Button><Button>Run release check</Button></>} />

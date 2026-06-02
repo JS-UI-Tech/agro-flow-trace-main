@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { dispatches } from "@/lib/mock-data";
+import { useDispatches } from "@/hooks/api";
 
 export const Route = createFileRoute("/customer-receiving")({
   head: () => ({ meta: [{ title: "Customer Receiving — AgroTrace" }] }),
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/customer-receiving")({
 });
 
 function ReceivingPage() {
+  const { data: dispatches = [] } = useDispatches();
   return (
     <>
       <PageHeader title="Customer / Distributor Receiving" description="Confirm deliveries, record short / damaged quantities." actions={<Button>Scan delivery</Button>} />

@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { wasteRecords } from "@/lib/mock-data";
+import { useWasteRecords } from "@/hooks/api";
 
 export const Route = createFileRoute("/waste")({
   head: () => ({ meta: [{ title: "Waste & Loss — AgroTrace" }] }),
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/waste")({
 });
 
 function WastePage() {
+  const { data: wasteRecords = [] } = useWasteRecords();
   return (
     <>
       <PageHeader title="Waste &amp; Loss" description="Record losses with reason and disposal method." actions={<Button>Record waste</Button>} />

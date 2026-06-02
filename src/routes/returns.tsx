@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import { returns } from "@/lib/mock-data";
+import { useReturns } from "@/hooks/api";
 
 export const Route = createFileRoute("/returns")({
   head: () => ({ meta: [{ title: "Returns — AgroTrace" }] }),
@@ -10,6 +10,7 @@ export const Route = createFileRoute("/returns")({
 });
 
 function ReturnsPage() {
+  const { data: returns = [] } = useReturns();
   return (
     <>
       <PageHeader title="Returns Management" description="Capture and resolve customer returns." actions={<Button>Record return</Button>} />

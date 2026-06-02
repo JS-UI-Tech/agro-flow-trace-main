@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { rawMaterials } from "@/lib/mock-data";
+import { useRawMaterials } from "@/hooks/api";
 import {
   Sheet,
   SheetContent,
@@ -22,6 +22,7 @@ export const Route = createFileRoute("/storage")({
 });
 
 function StoragePage() {
+  const { data: rawMaterials = [] } = useRawMaterials();
   const [intakeOpen, setIntakeOpen] = useState(false);
 
   const handleIntake = (e: React.FormEvent<HTMLFormElement>) => {

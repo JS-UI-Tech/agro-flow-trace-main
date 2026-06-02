@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { recalls } from "@/lib/mock-data";
+import { useRecalls } from "@/hooks/api";
 
 export const Route = createFileRoute("/recalls")({
   head: () => ({ meta: [{ title: "Recall Management — AgroTrace" }] }),
@@ -11,6 +11,7 @@ export const Route = createFileRoute("/recalls")({
 });
 
 function RecallsPage() {
+  const { data: recalls = [] } = useRecalls();
   return (
     <>
       <PageHeader title="Recall Management" description="Open recall cases, identify affected lots and track recovery." actions={<Button variant="destructive">Open new recall</Button>} />

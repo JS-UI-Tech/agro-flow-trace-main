@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { dispatches } from "@/lib/mock-data";
+import { useDispatches } from "@/hooks/api";
 import { QrCode } from "lucide-react";
 
 export const Route = createFileRoute("/dispatch")({
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/dispatch")({
 });
 
 function DispatchPage() {
+  const { data: dispatches = [] } = useDispatches();
   return (
     <>
       <PageHeader title="Sales &amp; Dispatch" description="Pick FG lots, scan cartons and generate dispatch notes." actions={<Button>New sales order</Button>} />
