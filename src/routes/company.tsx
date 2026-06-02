@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCompanyConfig } from "@/hooks/api";
+import { apiFetch } from "@/lib/api-client";
 import {
   Sheet,
   SheetContent,
@@ -37,7 +40,7 @@ type Section = {
   items?: string[];
 };
 
-const sections: Section[] = [
+const defaultSections: Section[] = [
   {
     title: "Company profile",
     desc: "Legal name, registration, VAT, contact details.",
@@ -161,10 +164,36 @@ const sections: Section[] = [
 ];
 
 function CompanySetup() {
+  const queryClient = useQueryClient();
+  const { data: cfg } = useCompanyConfig();
+  const [sections, setSections] = useState<Section[]>([]);
   const [active, setActive] = useState<Section | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Section | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loaded = (cfg?.sections as Section[] | undefined) ?? [];
+    setSections(loaded.length > 0 ? loaded : defaultSections);
+  }, [cfg]);
+
+  const persistSections = async (next: Section[]) => {
+    setSaving(true);
+    try {
+      await apiFetch("/api/company-config", {
+        method: "PUT",
+        body: JSON.stringify({ sections: next }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["company-config"] });
+      return true;
+    } catch {
+      toast.error("Failed to save configuration");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const openSheet = (s: Section, mode: "view" | "edit") => {
     setActive(s);
@@ -178,12 +207,37 @@ function CompanySetup() {
     setEditing(false);
   };
 
-  const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    toast.success(`Configuration added`, {
-      description: `${data.get("name")} (${data.get("type")}) saved.`,
-    });
+    const name = String(data.get("name") ?? "");
+    const type = String(data.get("type") ?? "");
+    const owner = String(data.get("owner") ?? "");
+    const code = String(data.get("code") ?? "");
+    const status = String(data.get("status") ?? "");
+    const effective = String(data.get("effective") ?? "");
+    const notes = String(data.get("notes") ?? "");
+
+    const newSection: Section = {
+      title: name,
+      desc: notes || type,
+      updated: effective,
+      owner,
+      fields: [
+        { label: "Type", value: type },
+        { label: "Reference code", value: code },
+        { label: "Status", value: status },
+      ],
+    };
+
+    const next = [...sections, newSection];
+    setSections(next);
+    const ok = await persistSections(next);
+    if (ok) {
+      toast.success(`Configuration added`, {
+        description: `${name} (${type}) saved.`,
+      });
+    }
     setAddOpen(false);
   };
 
@@ -326,12 +380,21 @@ function CompanySetup() {
                       Cancel edit
                     </Button>
                     <Button
-                      onClick={() => {
-                        toast.success(`${active.title} updated`);
-                        closeSheet();
+                      disabled={saving}
+                      onClick={async () => {
+                        if (!draft) return;
+                        const next = sections.map((s) =>
+                          s.title === active.title ? draft : s,
+                        );
+                        setSections(next);
+                        const ok = await persistSections(next);
+                        if (ok) {
+                          toast.success(`${active.title} updated`);
+                          closeSheet();
+                        }
                       }}
                     >
-                      Save changes
+                      {saving ? "Saving…" : "Save changes"}
                     </Button>
                   </>
                 ) : (
@@ -435,7 +498,9 @@ function CompanySetup() {
               <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Save configuration</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save configuration"}
+              </Button>
             </SheetFooter>
           </form>
         </SheetContent>

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 
 /* -------------------------------------------------------------------------- */
@@ -128,6 +128,82 @@ export type Dashboard = {
   recentBatches: ProductionBatch[];
 };
 
+export type Recipe = {
+  code: string;
+  product: string;
+  version: string;
+  yield: string;
+  shelf: string;
+  status: string;
+  ingredients: unknown[];
+  steps: unknown[];
+};
+
+export type ProductionOrder = {
+  id: string;
+  product: string;
+  recipeCode: string;
+  line: string;
+  supervisor: string;
+  due: string;
+  status: string;
+};
+
+export type PackagingRun = {
+  id: string;
+  code: string;
+  batch: string;
+  product: string;
+  packaging: string;
+  mfg: string;
+  expiry: string;
+  status: string;
+  boxes: unknown[];
+};
+
+export type WorkflowTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  steps: unknown[];
+};
+
+export type WorkflowInstance = {
+  id: string;
+  templateId: string;
+  assignee: string;
+  reference: string;
+  status: string;
+  currentStep: number;
+  stepData: unknown;
+};
+
+export type CompanyConfig = {
+  sections: unknown[];
+};
+
+export type AuditEntry = {
+  action: string;
+  entityType: string;
+  entityId: string;
+  user: string;
+  time: string;
+};
+
+export type ReportItem = {
+  id: string;
+  title: string;
+  metric: string;
+  value: string;
+};
+
+export type TraceResult = {
+  code: string;
+  matches: { type: string; record: unknown }[];
+  related: unknown[];
+};
+
 /* -------------------------------------------------------------------------- */
 /* Query hooks                                                                */
 /* -------------------------------------------------------------------------- */
@@ -199,5 +275,115 @@ export function useDashboard() {
   return useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiFetch<Dashboard>("/api/dashboard"),
+  });
+}
+
+export function useRecipes() {
+  return useQuery({
+    queryKey: ["recipes"],
+    queryFn: () => apiFetch<Recipe[]>("/api/recipes"),
+  });
+}
+
+export function useProductionOrders() {
+  return useQuery({
+    queryKey: ["production-orders"],
+    queryFn: () => apiFetch<ProductionOrder[]>("/api/production-orders"),
+  });
+}
+
+export function usePackagingRuns() {
+  return useQuery({
+    queryKey: ["packaging-runs"],
+    queryFn: () => apiFetch<PackagingRun[]>("/api/packaging-runs"),
+  });
+}
+
+export function useWorkflowTemplates() {
+  return useQuery({
+    queryKey: ["workflow-templates"],
+    queryFn: () => apiFetch<WorkflowTemplate[]>("/api/workflow-templates"),
+  });
+}
+
+export function useWorkflowInstances() {
+  return useQuery({
+    queryKey: ["workflow-instances"],
+    queryFn: () => apiFetch<WorkflowInstance[]>("/api/workflow-instances"),
+  });
+}
+
+export function useCompanyConfig() {
+  return useQuery({
+    queryKey: ["company-config"],
+    queryFn: () => apiFetch<CompanyConfig>("/api/company-config"),
+  });
+}
+
+export function useAudit() {
+  return useQuery({
+    queryKey: ["audit"],
+    queryFn: () => apiFetch<AuditEntry[]>("/api/audit?limit=100"),
+  });
+}
+
+export function useReports() {
+  return useQuery({
+    queryKey: ["reports"],
+    queryFn: () => apiFetch<ReportItem[]>("/api/reports"),
+  });
+}
+
+export function useTrace(code: string) {
+  return useQuery({
+    queryKey: ["trace", code],
+    queryFn: () => apiFetch<TraceResult>(`/api/trace/${code}`),
+    enabled: Boolean(code),
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Generic mutation hooks                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Create a record via POST to the given resource path (e.g. "/api/suppliers").
+ * On success invalidates the matching query key so lists refetch.
+ */
+export function useCreate<TData = unknown, TBody = unknown>(
+  resourcePath: string,
+  invalidateKey: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: TBody) =>
+      apiFetch<TData>(resourcePath, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [invalidateKey] });
+    },
+  });
+}
+
+/**
+ * Update a record via PATCH to `${resourcePath}/${id}` (resourcePath like "/api/suppliers").
+ * On success invalidates the matching query key so lists refetch.
+ */
+export function useUpdate<TData = unknown, TBody = unknown>(
+  resourcePath: string,
+  invalidateKey: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: TBody }) =>
+      apiFetch<TData>(`${resourcePath}/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [invalidateKey] });
+    },
   });
 }

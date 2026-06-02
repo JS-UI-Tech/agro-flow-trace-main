@@ -13,14 +13,13 @@ import {
 } from "@/components/ui/sheet";
 import {
   STEP_LIBRARY,
-  WORKFLOW_TEMPLATES,
   ASSIGNED_WORKFLOWS,
-  templateById,
   type AssignedWorkflow,
   type WorkflowStepKey,
   type WorkflowTemplate,
 } from "@/lib/workflows";
-import { ChevronRight, Plus, Send, Trash2, X } from "lucide-react";
+import { useWorkflowTemplates, useCreate, useUpdate } from "@/hooks/api";
+import { ChevronRight, Plus, Send, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/workflow-templates")({
@@ -31,7 +30,12 @@ export const Route = createFileRoute("/workflow-templates")({
 const TEAM = ["Aisha M.", "Samuel N.", "Peter K.", "Grace W.", "You"];
 
 function TemplatesPage() {
-  const [templates, setTemplates] = useState<WorkflowTemplate[]>(WORKFLOW_TEMPLATES);
+  const templatesQuery = useWorkflowTemplates();
+  const templates = (templatesQuery.data ?? []) as unknown as WorkflowTemplate[];
+  const createTemplate = useCreate("/api/workflow-templates", "workflow-templates");
+  const updateTemplate = useUpdate("/api/workflow-templates", "workflow-templates");
+  const templateById = (id: string) => templates.find((t) => t.id === id);
+
   const [assigned, setAssigned] = useState<AssignedWorkflow[]>(ASSIGNED_WORKFLOWS);
   const [editing, setEditing] = useState<WorkflowTemplate | null>(null);
   const [mode, setMode] = useState<"edit" | "create" | "assign" | null>(null);
@@ -68,18 +72,28 @@ function TemplatesPage() {
       return;
     }
     if (mode === "create") {
-      setTemplates((list) => [...list, { ...draft, id: `wf-${Date.now()}` }]);
-      toast.success("Template created");
+      createTemplate.mutate(
+        { ...draft, id: `wf-${Date.now()}` },
+        {
+          onSuccess: () => {
+            toast.success("Template created");
+            close();
+          },
+          onError: () => toast.error("Failed to create template"),
+        },
+      );
     } else if (mode === "edit" && editing) {
-      setTemplates((list) => list.map((t) => (t.id === editing.id ? { ...draft, id: editing.id } : t)));
-      toast.success("Template updated");
+      updateTemplate.mutate(
+        { id: editing.id, body: { ...draft, id: editing.id } },
+        {
+          onSuccess: () => {
+            toast.success("Template updated");
+            close();
+          },
+          onError: () => toast.error("Failed to update template"),
+        },
+      );
     }
-    close();
-  };
-
-  const remove = (id: string) => {
-    setTemplates((list) => list.filter((t) => t.id !== id));
-    toast.success("Template deleted");
   };
 
   const assign = () => {
@@ -136,9 +150,6 @@ function TemplatesPage() {
               ))}
             </div>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={() => remove(t.id)}>
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </Button>
               <Button size="sm" variant="outline" onClick={() => openEdit(t)}>
                 Edit
               </Button>

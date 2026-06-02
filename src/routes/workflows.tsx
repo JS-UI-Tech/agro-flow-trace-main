@@ -11,13 +11,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { STEP_LIBRARY, type WorkflowStepKey } from "@/lib/workflows";
 import {
-  ASSIGNED_WORKFLOWS,
-  STEP_LIBRARY,
-  templateById,
-  type AssignedWorkflow,
-  type WorkflowStepKey,
-} from "@/lib/workflows";
+  useWorkflowInstances,
+  useWorkflowTemplates,
+  useUpdate,
+  type WorkflowInstance,
+  type WorkflowTemplate,
+} from "@/hooks/api";
 import {
   CheckCircle2,
   Circle,
@@ -28,15 +29,28 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+type WorkflowStatus = "queued" | "in-progress" | "completed";
+
 export const Route = createFileRoute("/workflows")({
   head: () => ({ meta: [{ title: "My Tasks — AgroTrace" }] }),
   component: WorkflowsPage,
 });
 
 function WorkflowsPage() {
-  const [items, setItems] = useState<AssignedWorkflow[]>(ASSIGNED_WORKFLOWS);
+  const instancesQuery = useWorkflowInstances();
+  const templatesQuery = useWorkflowTemplates();
+  const updateInstance = useUpdate<WorkflowInstance>(
+    "/api/workflow-instances",
+    "workflow-instances",
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  const items = instancesQuery.data ?? [];
+  const templates = templatesQuery.data ?? [];
+
+  const templateById = (id: string): WorkflowTemplate | undefined =>
+    templates.find((t) => t.id === id);
 
   const inProgress = items.filter((i) => i.assignee === "You" && i.status === "in-progress");
   const myQueued = items.filter((i) => i.assignee === "You" && i.status === "queued");
@@ -45,15 +59,16 @@ function WorkflowsPage() {
     (i) => i.status === "completed" || (i.assignee !== "You" && i.assignee !== "Unassigned"),
   );
   const active = items.find((i) => i.id === activeId) ?? null;
-  const activeTemplate = active ? templateById(active.templateId) : null;
+  const activeTemplate = active ? templateById(active.templateId) : undefined;
+  const activeSteps = (activeTemplate?.steps ?? []) as WorkflowStepKey[];
 
   const claim = (id: string) => {
-    setItems((list) =>
-      list.map((i) => (i.id === id ? { ...i, status: "in-progress", assignee: "You" } : i)),
+    updateInstance.mutate(
+      { id, body: { status: "in-progress", assignee: "You" } },
+      { onSuccess: () => toast.success("Workflow claimed") },
     );
     setActiveId(id);
     setFormValues({});
-    toast.success("Workflow claimed");
   };
 
   const open = (id: string) => {
@@ -64,20 +79,18 @@ function WorkflowsPage() {
   const advance = () => {
     if (!active || !activeTemplate) return;
     const next = active.currentStep + 1;
-    if (next >= activeTemplate.steps.length) {
-      setItems((list) =>
-        list.map((i) =>
-          i.id === active.id ? { ...i, status: "completed", currentStep: next } : i,
-        ),
+    if (next >= activeSteps.length) {
+      updateInstance.mutate(
+        { id: active.id, body: { status: "completed", currentStep: next } },
+        { onSuccess: () => toast.success(`Workflow ${active.id} completed`) },
       );
-      toast.success(`Workflow ${active.id} completed`);
       setActiveId(null);
     } else {
-      setItems((list) =>
-        list.map((i) => (i.id === active.id ? { ...i, currentStep: next } : i)),
+      updateInstance.mutate(
+        { id: active.id, body: { currentStep: next } },
+        { onSuccess: () => toast.success("Step saved") },
       );
       setFormValues({});
-      toast.success("Step saved");
     }
   };
 
@@ -99,7 +112,13 @@ function WorkflowsPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {inProgress.map((wf) => (
-                <WorkflowCard key={wf.id} wf={wf} onOpen={() => open(wf.id)} cta="Resume" />
+                <WorkflowCard
+                  key={wf.id}
+                  wf={wf}
+                  template={templateById(wf.templateId)}
+                  onOpen={() => open(wf.id)}
+                  cta="Resume"
+                />
               ))}
             </div>
           )}
@@ -116,7 +135,13 @@ function WorkflowsPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {myQueued.map((wf) => (
-                <WorkflowCard key={wf.id} wf={wf} onOpen={() => open(wf.id)} cta="Start task" />
+                <WorkflowCard
+                  key={wf.id}
+                  wf={wf}
+                  template={templateById(wf.templateId)}
+                  onOpen={() => open(wf.id)}
+                  cta="Start task"
+                />
               ))}
             </div>
           )}
@@ -153,7 +178,9 @@ function WorkflowsPage() {
                         <div className="text-xs text-muted-foreground">{wf.id}</div>
                       </td>
                       <td className="px-4 py-2 text-muted-foreground">{wf.reference}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{wf.createdAt}</td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {(wf as { createdAt?: string }).createdAt ?? "—"}
+                      </td>
                       <td className="px-4 py-2 text-right">
                         <Button size="sm" onClick={() => claim(wf.id)}>
                           Claim
@@ -226,11 +253,11 @@ function WorkflowsPage() {
                 <SheetDescription>
                   {active.id} · {active.reference}
                 </SheetDescription>
-                <StepRail steps={activeTemplate.steps} current={active.currentStep} />
+                <StepRail steps={activeSteps} current={active.currentStep} />
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 <StepForm
-                  stepKey={activeTemplate.steps[Math.min(active.currentStep, activeTemplate.steps.length - 1)]}
+                  stepKey={activeSteps[Math.min(active.currentStep, activeSteps.length - 1)]}
                   values={formValues}
                   onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
                   done={active.status === "completed"}
@@ -242,7 +269,7 @@ function WorkflowsPage() {
                 </Button>
                 {active.status !== "completed" ? (
                   <Button onClick={advance}>
-                    {active.currentStep >= activeTemplate.steps.length - 1
+                    {active.currentStep >= activeSteps.length - 1
                       ? "Complete workflow"
                       : "Save & next step"}
                   </Button>
@@ -258,21 +285,23 @@ function WorkflowsPage() {
 
 function WorkflowCard({
   wf,
+  template,
   onOpen,
   cta = "Continue",
 }: {
-  wf: AssignedWorkflow;
+  wf: WorkflowInstance;
+  template: WorkflowTemplate | undefined;
   onOpen: () => void;
   cta?: string;
 }) {
-  const t = templateById(wf.templateId);
-  const currentStepKey = t?.steps[Math.min(wf.currentStep, (t?.steps.length ?? 1) - 1)];
+  const steps = (template?.steps ?? []) as WorkflowStepKey[];
+  const currentStepKey = steps[Math.min(wf.currentStep, Math.max(steps.length - 1, 0))];
   const stepLabel = currentStepKey ? STEP_LIBRARY[currentStepKey].title : "—";
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-base font-semibold">{t?.name}</div>
+          <div className="text-base font-semibold">{template?.name}</div>
           <div className="text-xs text-muted-foreground">{wf.id} · {wf.reference}</div>
         </div>
         <StatusPill status={wf.status} />
@@ -288,13 +317,13 @@ function WorkflowCard({
   );
 }
 
-function StatusPill({ status }: { status: AssignedWorkflow["status"] }) {
-  const map: Record<AssignedWorkflow["status"], { label: string; variant: "default" | "secondary" | "outline" }> = {
+function StatusPill({ status }: { status: string }) {
+  const map: Record<WorkflowStatus, { label: string; variant: "default" | "secondary" | "outline" }> = {
     queued: { label: "Queued", variant: "outline" },
     "in-progress": { label: "Active", variant: "default" },
     completed: { label: "Completed", variant: "secondary" },
   };
-  const m = map[status];
+  const m = map[status as WorkflowStatus] ?? { label: status, variant: "outline" as const };
   return <Badge variant={m.variant}>{m.label}</Badge>;
 }
 

@@ -2,26 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { FileText, Download } from "lucide-react";
+import { useReports } from "@/hooks/api";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({ meta: [{ title: "Reports — AgroTrace" }] }),
   component: ReportsPage,
 });
 
-const reports = [
-  "Supplier delivery report",
-  "Raw material stock report",
-  "Production batch report",
-  "Finished goods stock report",
-  "Expiry report",
-  "Recall report",
-  "Waste report",
-  "QC failure report",
-  "Sales dispatch report",
-  "Full traceability report",
-];
-
 function ReportsPage() {
+  const { data: reports = [] } = useReports();
   return (
     <>
       <PageHeader title="Reports" description="Generate operational, quality and compliance reports." />
@@ -36,11 +25,15 @@ function ReportsPage() {
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {reports.map((r) => (
-            <div key={r} className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <div key={r.id} className="rounded-lg border border-border bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between">
                 <div className="rounded-md bg-primary/10 p-2 text-primary"><FileText className="h-5 w-5" /></div>
+                <div className="text-right">
+                  <div className="text-lg font-semibold text-foreground">{r.value}</div>
+                  <div className="text-xs text-muted-foreground">{r.metric}</div>
+                </div>
               </div>
-              <h3 className="mt-3 text-sm font-semibold text-foreground">{r}</h3>
+              <h3 className="mt-3 text-sm font-semibold text-foreground">{r.title}</h3>
               <p className="mt-1 text-xs text-muted-foreground">Filter by date, product, batch, supplier, customer, location.</p>
               <div className="mt-4 flex gap-2">
                 <Button size="sm" className="flex-1">Generate</Button>

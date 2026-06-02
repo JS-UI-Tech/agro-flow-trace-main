@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Progress } from "@/components/ui/progress";
-import { RECIPES, startBatch, useBatchesState, type ProductionOrder } from "@/lib/batches-store";
+import { startBatch, useBatchesState, type ProductionOrder } from "@/lib/batches-store";
+import { useProductionOrders, useProductionBatches, useRecipes, type ProductionOrder as ApiProductionOrder } from "@/hooks/api";
 
 export const Route = createFileRoute("/production-batches")({
   head: () => ({ meta: [{ title: "Production Batches — AgroTrace" }] }),
@@ -12,11 +13,22 @@ export const Route = createFileRoute("/production-batches")({
 });
 
 function BatchesPage() {
-  const { orders, active, completed } = useBatchesState();
+  const { active } = useBatchesState();
+  const { data: orders = [] } = useProductionOrders();
+  const { data: completed = [] } = useProductionBatches();
+  const { data: recipes = [] } = useRecipes();
   const navigate = useNavigate();
 
-  const handleStart = (order: ProductionOrder) => {
-    const batch = startBatch(order);
+  const handleStart = (order: ApiProductionOrder) => {
+    const storeOrder: ProductionOrder = {
+      id: order.id,
+      product: order.product,
+      recipeCode: order.recipeCode,
+      line: order.line,
+      supervisor: order.supervisor,
+      due: order.due,
+    };
+    const batch = startBatch(storeOrder);
     if (batch) navigate({ to: "/production-batches/run/$batchId", params: { batchId: batch.batchId } });
   };
 
@@ -36,7 +48,7 @@ function BatchesPage() {
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {orders.map((o) => {
-                const r = RECIPES.find((r) => r.code === o.recipeCode);
+                const r = recipes.find((r) => r.code === o.recipeCode);
                 return (
                   <div key={o.id} className="rounded-lg border border-border bg-card p-4 shadow-sm">
                     <div className="flex items-start justify-between">

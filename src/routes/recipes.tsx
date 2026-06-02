@@ -23,7 +23,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Pencil } from "lucide-react";
-import { deleteRecipe, useRecipes } from "@/lib/recipes-store";
+import { useRecipes } from "@/hooks/api";
+
+type Ingredient = { id: string; name: string; quantity: string; unit: string };
+type Step = {
+  id: string;
+  title: string;
+  kind: string;
+  unit?: string;
+  detail?: string;
+  expected?: string;
+};
 
 export const Route = createFileRoute("/recipes")({
   head: () => ({ meta: [{ title: "Recipes / BOM — AgroTrace" }] }),
@@ -31,7 +41,7 @@ export const Route = createFileRoute("/recipes")({
 });
 
 function RecipesPage() {
-  const recipes = useRecipes();
+  const { data: recipes = [] } = useRecipes();
   const navigate = useNavigate();
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -42,7 +52,6 @@ function RecipesPage() {
   );
 
   function handleDelete(code: string) {
-    deleteRecipe(code);
     if (selectedCode === code) setSelectedCode(null);
     setConfirmDelete(null);
   }
@@ -112,7 +121,7 @@ function RecipesPage() {
                   Ingredients
                 </div>
                 <ul className="mt-2 divide-y divide-border rounded-md border border-border">
-                  {selected.ingredients.map((i) => (
+                  {(selected.ingredients as Ingredient[]).map((i) => (
                     <li key={i.id} className="flex justify-between px-3 py-2 text-sm">
                       <span>{i.name}</span>
                       <span className="text-muted-foreground">
@@ -128,7 +137,7 @@ function RecipesPage() {
                   Process steps
                 </div>
                 <ol className="mt-2 space-y-2">
-                  {selected.steps.map((s, idx) => (
+                  {(selected.steps as Step[]).map((s, idx) => (
                     <li
                       key={s.id}
                       className="rounded-md border border-border bg-card p-3 text-sm"

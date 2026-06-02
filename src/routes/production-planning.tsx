@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useProductionOrders, useCreate, useUpdate } from "@/hooks/api";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
@@ -42,12 +43,6 @@ interface Order extends Record<string, unknown> {
   notes: string;
 }
 
-const INITIAL_ORDERS: Order[] = [
-  { id: "PO-2026-218", product: "Mango Juice 500ml", recipe: "REC-MJ-500", qty: "10,000 units", line: "Line A", supervisor: "J. Otieno", start: "2026-05-19 08:00", end: "2026-05-19 14:00", status: "In Process", notes: "Priority shipment for Westlands DC." },
-  { id: "PO-2026-217", product: "Pasteurized Milk 1L", recipe: "REC-PM-1L", qty: "2,400 units", line: "Line B", supervisor: "M. Wanjiku", start: "2026-05-19 06:00", end: "2026-05-19 11:30", status: "Packaging", notes: "" },
-  { id: "PO-2026-216", product: "Maize Flour 2kg", recipe: "REC-MF-2K", qty: "4,000 units", line: "Line C", supervisor: "P. Kimani", start: "2026-05-20 07:00", end: "2026-05-20 16:00", status: "Pending", notes: "Awaiting maize delivery from Supplier KE-014." },
-];
-
 function emptyDraft(): Order {
   return {
     id: "",
@@ -64,10 +59,22 @@ function emptyDraft(): Order {
 }
 
 function PlanningPage() {
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const { data: ordersData = [] } = useProductionOrders();
+  const createOrder = useCreate("/api/production-orders", "production-orders");
+  const updateOrder = useUpdate("/api/production-orders", "production-orders");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [draft, setDraft] = useState<Order>(() => emptyDraft());
+
+  const orders = useMemo<Order[]>(
+    () =>
+      ordersData.map((o) => ({
+        ...emptyDraft(),
+        ...(o as Partial<Order>),
+        recipe: (o as Partial<Order>).recipe ?? o.recipeCode ?? "",
+      })),
+    [ordersData],
+  );
 
   const selected = useMemo(
     () => orders.find((o) => o.id === selectedId) ?? null,
@@ -81,9 +88,12 @@ function PlanningPage() {
 
   function saveDraft() {
     if (!draft.id || !draft.product) return;
-    setOrders((prev) =>
-      prev.some((o) => o.id === draft.id) ? prev : [draft, ...prev],
-    );
+    const exists = orders.some((o) => o.id === draft.id);
+    if (exists) {
+      updateOrder.mutate({ id: draft.id, body: draft });
+    } else {
+      createOrder.mutate(draft);
+    }
     setEditorOpen(false);
   }
 

@@ -5,7 +5,7 @@ import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Plus } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { usePackagingState } from "@/lib/packaging-store";
+import { usePackagingRuns } from "@/hooks/api";
 
 export const Route = createFileRoute("/packaging")({
   head: () => ({ meta: [{ title: "Packaging — AgroTrace" }] }),
@@ -13,16 +13,20 @@ export const Route = createFileRoute("/packaging")({
 });
 
 function PackagingPage() {
-  const { runs } = usePackagingState();
-  const rows = runs.map((r) => ({
-    id: r.id,
-    batch: r.batch,
-    product: r.product,
-    packaging: r.packaging,
-    packed: `${r.boxes.length} boxes · ${r.boxes.reduce((s, b) => s + b.products.length, 0)} units`,
-    expiry: r.expiry,
-    status: r.status,
-  }));
+  const { data: runs = [] } = usePackagingRuns();
+  const rows = runs.map((r) => {
+    const boxes = (r.boxes ?? []) as Array<{ products?: unknown[] }>;
+    const units = boxes.reduce((s, b) => s + (b?.products?.length ?? 0), 0);
+    return {
+      id: r.id,
+      batch: r.batch,
+      product: r.product,
+      packaging: r.packaging,
+      packed: `${boxes.length} boxes · ${units} units`,
+      expiry: r.expiry,
+      status: r.status,
+    };
+  });
   return (
     <>
       <PageHeader
