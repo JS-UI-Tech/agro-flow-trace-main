@@ -5,6 +5,7 @@ import { env } from "./env";
 import { dbHealthCheck } from "./db";
 import { redisHealthCheck } from "./redis";
 import { seedAdmin } from "./seed-admin";
+import { domainRouter, migrateDomain, seedDomain } from "./domain";
 
 const app = new Hono();
 
@@ -42,12 +43,17 @@ app.get("/api/me", async (c) => {
   return c.json(session);
 });
 
+// ── Domain API (suppliers, batches, dispatch, dashboard, …) ────────────────
+app.route("/api", domainRouter);
+
 // ── Boot ─────────────────────────────────────────────────────────────────--
 if (await dbHealthCheck()) {
   console.log("✅ DB connected");
 } else {
   console.error("❌ DB connection failed — check DATABASE_URL");
 }
+await migrateDomain();
+await seedDomain();
 await seedAdmin();
 
 const server = Bun.serve({
