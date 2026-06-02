@@ -361,7 +361,20 @@ export function useCreate<TData = unknown, TBody = unknown>(
         method: "POST",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => {
+    // Optimistic insert: show the new row immediately, reconcile on settle.
+    onMutate: async (body: TBody) => {
+      await queryClient.cancelQueries({ queryKey: [invalidateKey] });
+      const previous = queryClient.getQueryData<unknown[]>([invalidateKey]);
+      const optimistic = { id: `tmp-${Date.now()}`, ...(body as Record<string, unknown>) };
+      queryClient.setQueryData<unknown[]>([invalidateKey], (old) =>
+        Array.isArray(old) ? [optimistic, ...old] : old,
+      );
+      return { previous };
+    },
+    onError: (_err, _body, ctx) => {
+      if (ctx?.previous !== undefined) queryClient.setQueryData([invalidateKey], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [invalidateKey] });
     },
   });
@@ -369,7 +382,7 @@ export function useCreate<TData = unknown, TBody = unknown>(
 
 /**
  * Update a record via PATCH to `${resourcePath}/${id}` (resourcePath like "/api/suppliers").
- * On success invalidates the matching query key so lists refetch.
+ * Applies an optimistic patch to the cached list, rolling back on error.
  */
 export function useUpdate<TData = unknown, TBody = unknown>(
   resourcePath: string,
@@ -382,7 +395,23 @@ export function useUpdate<TData = unknown, TBody = unknown>(
         method: "PATCH",
         body: JSON.stringify(body),
       }),
-    onSuccess: () => {
+    onMutate: async ({ id, body }: { id: string; body: TBody }) => {
+      await queryClient.cancelQueries({ queryKey: [invalidateKey] });
+      const previous = queryClient.getQueryData<unknown[]>([invalidateKey]);
+      queryClient.setQueryData<unknown[]>([invalidateKey], (old) =>
+        Array.isArray(old)
+          ? old.map((row) => {
+              const r = row as Record<string, unknown>;
+              return r.id === id || r.code === id ? { ...r, ...(body as Record<string, unknown>) } : row;
+            })
+          : old,
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous !== undefined) queryClient.setQueryData([invalidateKey], ctx.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [invalidateKey] });
     },
   });

@@ -30,6 +30,41 @@ function timeOf(value: unknown): string {
   return "";
 }
 
+function prettyType(type: unknown): string {
+  if (!type) return "Record";
+  return String(type)
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// A short "key: value" summary line of the most relevant fields on a record.
+function details(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const r = value as Record<string, unknown>;
+  const parts: string[] = [];
+  const add = (label: string, key: string) => {
+    if (r[key] != null && r[key] !== "") parts.push(`${label}: ${r[key]}`);
+  };
+  add("Status", "status");
+  add("Qty", "qty");
+  add("Customer", "customer");
+  add("Supplier", "supplier");
+  add("Batch", "batch");
+  add("Checkpoint", "checkpoint");
+  add("Destination", "destination");
+  add("Location", "location");
+  return parts.slice(0, 3).join("  ·  ");
+}
+
+// Normalise a trace entry that may be a flat record or a { type, record } wrapper.
+function entry(value: unknown): { type?: unknown; record: unknown } {
+  if (value && typeof value === "object" && "record" in (value as Record<string, unknown>)) {
+    const v = value as Record<string, unknown>;
+    return { type: v.type, record: v.record };
+  }
+  return { record: value };
+}
+
 function TracePage() {
   const [code, setCode] = useState("FG-2026-0990");
   const { data: trace } = useTrace(code);
@@ -61,14 +96,18 @@ function TracePage() {
               {matches.length === 0 ? (
                 <li className="text-sm text-muted-foreground">No matches{code ? ` for "${code}"` : ""}.</li>
               ) : (
-                matches.map((m, i) => (
-                  <li key={i} className="relative">
-                    <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-primary bg-background" />
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{m.type}</div>
-                    <div className="text-sm font-medium">{formatLabel(m.record)}</div>
-                    <div className="text-xs text-muted-foreground">{timeOf(m.record)}</div>
-                  </li>
-                ))
+                matches.map((m, i) => {
+                  const e = entry(m);
+                  return (
+                    <li key={i} className="relative">
+                      <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-primary bg-background" />
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{prettyType(e.type ?? (m as { type?: unknown }).type)}</div>
+                      <div className="text-sm font-medium">{formatLabel(e.record)}</div>
+                      {details(e.record) && <div className="text-xs text-muted-foreground">{details(e.record)}</div>}
+                      {timeOf(e.record) && <div className="text-xs text-muted-foreground">{timeOf(e.record)}</div>}
+                    </li>
+                  );
+                })
               )}
             </ol>
           </div>
@@ -79,13 +118,18 @@ function TracePage() {
               {related.length === 0 ? (
                 <li className="text-sm text-muted-foreground">No related records{code ? ` for "${code}"` : ""}.</li>
               ) : (
-                related.map((r, i) => (
-                  <li key={i} className="relative">
-                    <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-primary bg-background" />
-                    <div className="text-sm font-medium">{formatLabel(r)}</div>
-                    <div className="text-xs text-muted-foreground">{timeOf(r)}</div>
-                  </li>
-                ))
+                related.map((r, i) => {
+                  const e = entry(r);
+                  return (
+                    <li key={i} className="relative">
+                      <span className="absolute -left-[27px] top-1 h-3 w-3 rounded-full border-2 border-primary bg-background" />
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{prettyType(e.type)}</div>
+                      <div className="text-sm font-medium">{formatLabel(e.record)}</div>
+                      {details(e.record) && <div className="text-xs text-muted-foreground">{details(e.record)}</div>}
+                      {timeOf(e.record) && <div className="text-xs text-muted-foreground">{timeOf(e.record)}</div>}
+                    </li>
+                  );
+                })
               )}
             </ol>
           </div>
