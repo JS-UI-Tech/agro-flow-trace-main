@@ -4,4 +4,8 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Serve the frontend at agro-trace.jsui.digital (the jsui.digital Cloudflare
+  // zone must be in the same account you deploy with). Remove this block to
+  // deploy only to the *.workers.dev subdomain.
+  "routes": [{ "pattern": "agro-trace.jsui.digital", "custom_domain": true }],
 }
