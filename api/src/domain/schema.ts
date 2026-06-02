@@ -1,4 +1,4 @@
-import { pgTable, text, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, numeric, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { pool } from "../db";
 
@@ -134,4 +134,78 @@ export const returns = pgTable("returns", {
   decision: text("decision"),
   date: text("date"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── 10. recipes ───────────────────────────────────────────────────────────--
+// JSON key "yield" maps to safe column name yield_text. Nested arrays as jsonb.
+export const recipes = pgTable("recipes", {
+  code: text("code").primaryKey(),
+  product: text("product"),
+  version: text("version"),
+  yieldText: text("yield_text"),
+  shelf: text("shelf"),
+  status: text("status"),
+  ingredients: jsonb("ingredients").$type<unknown[]>().default([]),
+  steps: jsonb("steps").$type<unknown[]>().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── 11. production_orders ──────────────────────────────────────────────────-
+// JSON key "recipeCode" maps to column recipe_code.
+export const productionOrders = pgTable("production_orders", {
+  id: text("id").primaryKey(),
+  product: text("product"),
+  recipeCode: text("recipe_code"),
+  line: text("line"),
+  supervisor: text("supervisor"),
+  due: text("due"),
+  status: text("status").default("Planned"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── 12. packaging_runs ─────────────────────────────────────────────────────-
+// Nested boxes/products tree stored as jsonb.
+export const packagingRuns = pgTable("packaging_runs", {
+  id: text("id").primaryKey(),
+  code: text("code"),
+  batch: text("batch"),
+  product: text("product"),
+  packaging: text("packaging"),
+  mfg: text("mfg"),
+  expiry: text("expiry"),
+  status: text("status"),
+  boxes: jsonb("boxes").$type<unknown[]>().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── 13. workflow_templates ─────────────────────────────────────────────────-
+// steps is an array of step keys stored as jsonb.
+export const workflowTemplates = pgTable("workflow_templates", {
+  id: text("id").primaryKey(),
+  name: text("name"),
+  description: text("description"),
+  category: text("category"),
+  steps: jsonb("steps").$type<unknown[]>().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── 14. workflow_instances ─────────────────────────────────────────────────-
+// JSON keys templateId/currentStep/stepData map to template_id/current_step/step_data.
+export const workflowInstances = pgTable("workflow_instances", {
+  id: text("id").primaryKey(),
+  templateId: text("template_id"),
+  assignee: text("assignee"),
+  reference: text("reference"),
+  status: text("status"),
+  currentStep: integer("current_step").default(0),
+  stepData: jsonb("step_data").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+// ── 15. company_config ─────────────────────────────────────────────────────-
+// Single config row keyed by id (default 'default').
+export const companyConfig = pgTable("company_config", {
+  id: text("id").primaryKey().default("default"),
+  data: jsonb("data").$type<Record<string, unknown>>().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

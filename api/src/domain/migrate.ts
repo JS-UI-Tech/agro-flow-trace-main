@@ -151,10 +151,104 @@ export async function migrateDomain(): Promise<void> {
     )
   `);
 
+  // 10. recipes (yield -> yield_text; ingredients/steps as jsonb)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS recipes (
+      code text PRIMARY KEY,
+      product text,
+      version text,
+      yield_text text,
+      shelf text,
+      status text,
+      ingredients jsonb DEFAULT '[]'::jsonb,
+      steps jsonb DEFAULT '[]'::jsonb,
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // 11. production_orders (recipeCode -> recipe_code)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS production_orders (
+      id text PRIMARY KEY,
+      product text,
+      recipe_code text,
+      line text,
+      supervisor text,
+      due text,
+      status text DEFAULT 'Planned',
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // 12. packaging_runs (boxes tree as jsonb)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS packaging_runs (
+      id text PRIMARY KEY,
+      code text,
+      batch text,
+      product text,
+      packaging text,
+      mfg text,
+      expiry text,
+      status text,
+      boxes jsonb DEFAULT '[]'::jsonb,
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // 13. workflow_templates (steps as jsonb)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workflow_templates (
+      id text PRIMARY KEY,
+      name text,
+      description text,
+      category text,
+      steps jsonb DEFAULT '[]'::jsonb,
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // 14. workflow_instances (templateId/currentStep/stepData -> template_id/current_step/step_data)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS workflow_instances (
+      id text PRIMARY KEY,
+      template_id text,
+      assignee text,
+      reference text,
+      status text,
+      current_step integer DEFAULT 0,
+      step_data jsonb DEFAULT '{}'::jsonb,
+      created_at timestamptz DEFAULT now()
+    )
+  `);
+
+  // 15. company_config (single config row)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS company_config (
+      id text PRIMARY KEY DEFAULT 'default',
+      data jsonb DEFAULT '{}'::jsonb,
+      updated_at timestamptz DEFAULT now()
+    )
+  `);
+
   // Numeric helper columns (idempotent; safe on pre-existing tables).
   await pool.query(`ALTER TABLE production_batches ADD COLUMN IF NOT EXISTS yield_num numeric`);
   await pool.query(`ALTER TABLE production_batches ADD COLUMN IF NOT EXISTS waste_num numeric`);
   await pool.query(`ALTER TABLE dispatches ADD COLUMN IF NOT EXISTS qty_num numeric`);
   await pool.query(`ALTER TABLE waste_records ADD COLUMN IF NOT EXISTS qty_num numeric`);
   await pool.query(`ALTER TABLE finished_goods ADD COLUMN IF NOT EXISTS qty_num numeric`);
+
+  // New-table columns (idempotent; safe on pre-existing tables).
+  await pool.query(`ALTER TABLE recipes ADD COLUMN IF NOT EXISTS yield_text text`);
+  await pool.query(`ALTER TABLE recipes ADD COLUMN IF NOT EXISTS ingredients jsonb DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE recipes ADD COLUMN IF NOT EXISTS steps jsonb DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS recipe_code text`);
+  await pool.query(`ALTER TABLE production_orders ADD COLUMN IF NOT EXISTS status text DEFAULT 'Planned'`);
+  await pool.query(`ALTER TABLE packaging_runs ADD COLUMN IF NOT EXISTS boxes jsonb DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE workflow_templates ADD COLUMN IF NOT EXISTS steps jsonb DEFAULT '[]'::jsonb`);
+  await pool.query(`ALTER TABLE workflow_instances ADD COLUMN IF NOT EXISTS template_id text`);
+  await pool.query(`ALTER TABLE workflow_instances ADD COLUMN IF NOT EXISTS current_step integer DEFAULT 0`);
+  await pool.query(`ALTER TABLE workflow_instances ADD COLUMN IF NOT EXISTS step_data jsonb DEFAULT '{}'::jsonb`);
+  await pool.query(`ALTER TABLE company_config ADD COLUMN IF NOT EXISTS data jsonb DEFAULT '{}'::jsonb`);
+  await pool.query(`ALTER TABLE company_config ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
 }
