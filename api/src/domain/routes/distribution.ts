@@ -44,7 +44,7 @@ const dispatchSchema = z
     status: z.string().optional(),
     date: z.string().optional(),
   })
-  .strict();
+  ;
 
 const recallSchema = z
   .object({
@@ -58,7 +58,7 @@ const recallSchema = z
     status: z.string().optional(),
     opened: z.string().optional(),
   })
-  .strict();
+  ;
 
 const wasteRecordSchema = z
   .object({
@@ -71,7 +71,7 @@ const wasteRecordSchema = z
     date: z.string().optional(),
     status: z.string().optional(),
   })
-  .strict();
+  ;
 
 const returnSchema = z
   .object({
@@ -84,7 +84,7 @@ const returnSchema = z
     decision: z.string().optional(),
     date: z.string().optional(),
   })
-  .strict();
+  ;
 
 // Strip dashboard-only helper columns from the entity JSON.
 const stripQtyNum = ({ qtyNum, ...rest }: Record<string, unknown>) => rest;

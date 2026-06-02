@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useSuppliers, type Supplier } from "@/hooks/api";
+import { useSuppliers, useCreate, useUpdate, type Supplier } from "@/hooks/api";
 import { useState } from "react";
 import {
   Sheet,
@@ -33,6 +33,8 @@ export const Route = createFileRoute("/suppliers")({
 
 function SuppliersPage() {
   const { data: suppliers = [] } = useSuppliers();
+  const createSupplier = useCreate("/api/suppliers", "suppliers");
+  const updateSupplier = useUpdate("/api/suppliers", "suppliers");
   const [addOpen, setAddOpen] = useState(false);
   const [active, setActive] = useState<Supplier | null>(null);
   const [editing, setEditing] = useState(false);
@@ -73,10 +75,20 @@ function SuppliersPage() {
   const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    toast.success("Supplier added", {
-      description: `${data.get("name")} pending QA approval.`,
+    const body = Object.fromEntries(data.entries());
+    createSupplier.mutate(body, {
+      onSuccess: () => {
+        toast.success("Supplier added", {
+          description: `${data.get("name")} pending QA approval.`,
+        });
+        setAddOpen(false);
+      },
+      onError: (err) => {
+        toast.error("Failed to add supplier", {
+          description: err instanceof Error ? err.message : "Please try again.",
+        });
+      },
     });
-    setAddOpen(false);
   };
 
   return (
@@ -229,7 +241,22 @@ function SuppliersPage() {
                 {editing ? (
                   <>
                     <Button variant="outline" onClick={() => { setDraft({ ...active }); setEditing(false); }}>Cancel edit</Button>
-                    <Button onClick={() => { toast.success(`${draft.name} updated`); closeSupplier(); }}>Save changes</Button>
+                    <Button onClick={() => {
+                      updateSupplier.mutate(
+                        { id: draft.id, body: draft },
+                        {
+                          onSuccess: () => {
+                            toast.success(`${draft.name} updated`);
+                            closeSupplier();
+                          },
+                          onError: (err) => {
+                            toast.error("Failed to update supplier", {
+                              description: err instanceof Error ? err.message : "Please try again.",
+                            });
+                          },
+                        },
+                      );
+                    }}>Save changes</Button>
                   </>
                 ) : (
                   <>

@@ -12,8 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft } from "lucide-react";
-import { createRun } from "@/lib/packaging-store";
-import { useBatchesState } from "@/lib/batches-store";
+import { apiFetch } from "@/lib/api-client";
+import { useProductionBatches } from "@/hooks/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/packaging_/new")({
   head: () => ({ meta: [{ title: "New production run — AgroTrace" }] }),
@@ -31,38 +33,58 @@ const PACKAGING_TYPES = [
 
 function NewRunPage() {
   const navigate = useNavigate();
-  const { active, completed } = useBatchesState();
+  const queryClient = useQueryClient();
+  const { data: batches } = useProductionBatches();
 
-  const batchOptions = [
-    ...active.map((b) => ({ id: b.batchId, product: b.order.product })),
-    ...completed.map((b) => ({ id: b.id, product: b.product })),
-  ];
+  const batchOptions = (batches ?? []).map((b) => ({ id: b.id, product: b.product }));
 
-  const [batch, setBatch] = useState(batchOptions[0]?.id ?? "");
+  const [batch, setBatch] = useState("");
   const [packaging, setPackaging] = useState(PACKAGING_TYPES[0]);
   const [mfg, setMfg] = useState(new Date().toISOString().slice(0, 10));
   const [expiry, setExpiry] = useState("");
   const [boxCount, setBoxCount] = useState(10);
   const [productsPerBox, setProductsPerBox] = useState(12);
+  const [saving, setSaving] = useState(false);
 
   const selectedProduct = batchOptions.find((b) => b.id === batch)?.product ?? "";
 
-  function save() {
+  async function save() {
     if (!batch || !selectedProduct || !mfg || !expiry || boxCount < 1 || productsPerBox < 1) return;
-    const run = createRun({
+    const boxes = Array.from({ length: boxCount }).map((_, bi) => ({
+      id: `BX-${bi + 1}`,
+      code: `BX-${String(bi + 1).padStart(3, "0")}`,
+      products: Array.from({ length: productsPerBox }).map((__, pi) => ({
+        id: `PD-${bi + 1}-${pi + 1}`,
+        code: `PD-${String(bi + 1).padStart(3, "0")}-${String(pi + 1).padStart(3, "0")}`,
+      })),
+    }));
+    const body = {
       batch,
       product: selectedProduct,
       packaging,
       mfg,
       expiry,
-      boxCount,
-      productsPerBox,
-    });
-    navigate({ to: "/packaging/run/$runId", params: { runId: run.id } });
+      status: "In Progress",
+      boxes,
+    };
+    setSaving(true);
+    try {
+      const run = await apiFetch<{ id: string }>("/api/packaging-runs", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["packaging-runs"] });
+      toast.success("Packaging run created");
+      navigate({ to: "/packaging/run/$runId", params: { runId: run.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create run");
+    } finally {
+      setSaving(false);
+    }
   }
 
   const totalUnits = boxCount * productsPerBox;
-  const canSave = !!batch && !!selectedProduct && !!mfg && !!expiry && boxCount >= 1 && productsPerBox >= 1;
+  const canSave = !!batch && !!selectedProduct && !!mfg && !!expiry && boxCount >= 1 && productsPerBox >= 1 && !saving;
 
   return (
     <>

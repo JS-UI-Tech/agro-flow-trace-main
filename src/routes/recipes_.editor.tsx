@@ -1,5 +1,8 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api-client";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,14 +16,50 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
-import {
-  emptyRecipe,
-  getRecipe,
-  uid,
-  upsertRecipe,
-  type Recipe,
-  type StepKind,
-} from "@/lib/recipes-store";
+
+type StepKind = "check" | "input";
+
+interface Ingredient {
+  id: string;
+  name: string;
+  quantity: string;
+  unit: string;
+}
+
+interface ProcessStep {
+  id: string;
+  title: string;
+  detail: string;
+  kind: StepKind;
+  unit?: string;
+  expected?: string;
+}
+
+interface Recipe extends Record<string, unknown> {
+  code: string;
+  product: string;
+  version: string;
+  yield: string;
+  shelf: string;
+  status: string;
+  ingredients: Ingredient[];
+  steps: ProcessStep[];
+}
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+
+function emptyRecipe(): Recipe {
+  return {
+    code: "",
+    product: "",
+    version: "v1.0",
+    yield: "",
+    shelf: "",
+    status: "Pending",
+    ingredients: [{ id: uid(), name: "", quantity: "", unit: "kg" }],
+    steps: [{ id: uid(), title: "", detail: "", kind: "check" }],
+  };
+}
 
 export const Route = createFileRoute("/recipes_/editor")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -33,16 +72,70 @@ export const Route = createFileRoute("/recipes_/editor")({
 function RecipeEditorPage() {
   const { code } = Route.useSearch();
   const navigate = useNavigate();
-  const editing = code ? getRecipe(code) : null;
+  const queryClient = useQueryClient();
+  const editing = !!code;
 
-  const [draft, setDraft] = useState<Recipe>(() =>
-    editing ? (JSON.parse(JSON.stringify(editing)) as Recipe) : emptyRecipe(),
-  );
+  const [draft, setDraft] = useState<Recipe>(() => emptyRecipe());
+  const [saving, setSaving] = useState(false);
 
-  function save() {
-    if (!draft.code || !draft.product) return;
-    upsertRecipe(draft, editing?.code ?? null);
-    navigate({ to: "/recipes" });
+  useEffect(() => {
+    if (!code) return;
+    let cancelled = false;
+    apiFetch<Recipe>("/api/recipes/" + code)
+      .then((recipe) => {
+        if (cancelled || !recipe) return;
+        setDraft({
+          ...emptyRecipe(),
+          ...recipe,
+          ingredients: (recipe.ingredients ?? []).map((ing) => ({
+            id: ing.id ?? uid(),
+            name: ing.name ?? "",
+            quantity: ing.quantity ?? "",
+            unit: ing.unit ?? "",
+          })),
+          steps: (recipe.steps ?? []).map((step) => ({
+            id: step.id ?? uid(),
+            title: step.title ?? "",
+            detail: step.detail ?? "",
+            kind: (step.kind as StepKind) ?? "check",
+            unit: step.unit,
+            expected: step.expected,
+          })),
+        });
+      })
+      .catch((err) => {
+        toast.error(
+          err instanceof Error ? err.message : "Failed to load recipe",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  async function save() {
+    if (!draft.code || !draft.product || saving) return;
+    setSaving(true);
+    try {
+      if (editing) {
+        await apiFetch<Recipe>("/api/recipes/" + draft.code, {
+          method: "PATCH",
+          body: JSON.stringify(draft),
+        });
+      } else {
+        await apiFetch<Recipe>("/api/recipes", {
+          method: "POST",
+          body: JSON.stringify(draft),
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      toast.success(editing ? "Recipe updated" : "Recipe created");
+      navigate({ to: "/recipes" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save recipe");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -57,7 +150,10 @@ function RecipeEditorPage() {
                 <ArrowLeft /> Back
               </Link>
             </Button>
-            <Button onClick={save} disabled={!draft.code || !draft.product}>
+            <Button
+              onClick={save}
+              disabled={!draft.code || !draft.product || saving}
+            >
               {editing ? "Save changes" : "Create recipe"}
             </Button>
           </>
@@ -76,7 +172,7 @@ function RecipeEditorPage() {
                 value={draft.code}
                 onChange={(e) => setDraft({ ...draft, code: e.target.value })}
                 placeholder="REC-XX-000"
-                disabled={!!editing}
+                disabled={editing}
               />
             </div>
             <div className="space-y-1">
@@ -306,7 +402,10 @@ function RecipeEditorPage() {
           <Button variant="outline" asChild>
             <Link to="/recipes">Cancel</Link>
           </Button>
-          <Button onClick={save} disabled={!draft.code || !draft.product}>
+          <Button
+            onClick={save}
+            disabled={!draft.code || !draft.product || saving}
+          >
             {editing ? "Save changes" : "Create recipe"}
           </Button>
         </div>

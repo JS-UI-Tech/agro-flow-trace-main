@@ -6,6 +6,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Progress } from "@/components/ui/progress";
 import { startBatch, useBatchesState, type ProductionOrder } from "@/lib/batches-store";
 import { useProductionOrders, useProductionBatches, useRecipes, type ProductionOrder as ApiProductionOrder } from "@/hooks/api";
+import { apiFetch } from "@/lib/api-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/production-batches")({
   head: () => ({ meta: [{ title: "Production Batches — AgroTrace" }] }),
@@ -18,8 +21,9 @@ function BatchesPage() {
   const { data: completed = [] } = useProductionBatches();
   const { data: recipes = [] } = useRecipes();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const handleStart = (order: ApiProductionOrder) => {
+  const handleStart = async (order: ApiProductionOrder) => {
     const storeOrder: ProductionOrder = {
       id: order.id,
       product: order.product,
@@ -28,8 +32,30 @@ function BatchesPage() {
       supervisor: order.supervisor,
       due: order.due,
     };
-    const batch = startBatch(storeOrder);
-    if (batch) navigate({ to: "/production-batches/run/$batchId", params: { batchId: batch.batchId } });
+    const active = startBatch(storeOrder);
+    if (!active) return;
+
+    const r = recipes.find((rec) => rec.code === order.recipeCode);
+    const recipe = `${order.recipeCode}${r?.version ? ` ${r.version}` : ""}`;
+    try {
+      await apiFetch("/api/production-batches", {
+        method: "POST",
+        body: JSON.stringify({
+          id: active.batchId,
+          product: order.product,
+          recipe,
+          line: order.line,
+          supervisor: order.supervisor,
+          start: new Date().toISOString(),
+          status: "In Process",
+        }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["production-batches"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start batch");
+    }
+    navigate({ to: "/production-batches/run/$batchId", params: { batchId: active.batchId } });
   };
 
   return (

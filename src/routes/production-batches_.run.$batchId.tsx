@@ -6,7 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { completeBatch, getActiveBatch, updateStep, useBatchesState } from "@/lib/batches-store";
+import { getActiveBatch, updateStep, useBatchesState } from "@/lib/batches-store";
+import { apiFetch } from "@/lib/api-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/production-batches_/run/$batchId")({
   head: () => ({ meta: [{ title: "Batch run — AgroTrace" }] }),
@@ -17,6 +20,8 @@ function RunPage() {
   const { batchId } = Route.useParams();
   useBatchesState(); // re-render on store changes
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [releasing, setReleasing] = useState(false);
   const batch = getActiveBatch(batchId);
   const [activeIdx, setActiveIdx] = useState(() => {
     if (!batch) return 0;
@@ -57,9 +62,25 @@ function RunPage() {
     if (activeIdx < total - 1) setActiveIdx(activeIdx + 1);
   };
 
-  const release = () => {
-    completeBatch(batch.batchId);
-    navigate({ to: "/production-batches" });
+  const release = async () => {
+    if (releasing) return;
+    setReleasing(true);
+    try {
+      await apiFetch("/api/production-batches/" + batchId, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "Released", end: new Date().toLocaleString() }),
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["production-batches"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      ]);
+      toast.success(`Batch ${batchId} released`);
+      navigate({ to: "/production-batches" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to release batch");
+    } finally {
+      setReleasing(false);
+    }
   };
 
   return (
@@ -152,8 +173,8 @@ function RunPage() {
                   activeIdx < total - 1 ? (
                     <Button onClick={goNext}>Next step <ArrowRight /></Button>
                   ) : (
-                    <Button onClick={release} disabled={!allDone}>
-                      {allDone ? "Release batch to records" : "Complete remaining steps"}
+                    <Button onClick={release} disabled={!allDone || releasing}>
+                      {allDone ? (releasing ? "Releasing…" : "Release batch to records") : "Complete remaining steps"}
                     </Button>
                   )
                 ) : (
@@ -200,8 +221,8 @@ function RunPage() {
             </ol>
 
             {allDone && (
-              <Button className="mt-4 w-full" onClick={release}>
-                Release batch
+              <Button className="mt-4 w-full" onClick={release} disabled={releasing}>
+                {releasing ? "Releasing…" : "Release batch"}
               </Button>
             )}
           </aside>

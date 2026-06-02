@@ -33,13 +33,14 @@ import {
 } from "@/components/ui/select";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useRawMaterials, useCreate, useUpdate } from "@/hooks/api";
 
 export const Route = createFileRoute("/raw-materials")({
   head: () => ({ meta: [{ title: "Raw Materials — AgroTrace" }] }),
   component: RawMaterialsPage,
 });
 
-type RawMaterial = {
+type RawMaterialForm = {
   id: string;
   name: string;
   category: string;
@@ -49,15 +50,7 @@ type RawMaterial = {
   description: string;
 };
 
-const seed: RawMaterial[] = [
-  { id: "RMT-001", name: "Raw Milk", category: "Dairy", uom: "L", shelfLife: "3 days", storage: "Cold Room (2–4 °C)", description: "Unpasteurized whole milk received from approved dairy cooperatives." },
-  { id: "RMT-002", name: "Maize Grain", category: "Grain", uom: "kg", shelfLife: "6 months", storage: "Silo (dry, <14% moisture)", description: "Dried whole maize kernels for milling into flour." },
-  { id: "RMT-003", name: "Mango Pulp", category: "Fruit", uom: "kg", shelfLife: "90 days", storage: "Cold Room (0–4 °C)", description: "Aseptic mango pulp used as juice base ingredient." },
-  { id: "RMT-004", name: "Sugar", category: "Ingredient", uom: "kg", shelfLife: "12 months", storage: "Dry Store (ambient)", description: "Refined white sugar used as sweetener across recipes." },
-  { id: "RMT-005", name: "PET Bottles 500ml", category: "Packaging", uom: "pcs", shelfLife: "—", storage: "Packaging Store", description: "Food-grade 500ml PET bottles for juice line." },
-];
-
-const empty: RawMaterial = {
+const empty: RawMaterialForm = {
   id: "",
   name: "",
   category: "Ingredient",
@@ -68,11 +61,14 @@ const empty: RawMaterial = {
 };
 
 function RawMaterialsPage() {
-  const [items, setItems] = useState<RawMaterial[]>(seed);
+  const { data } = useRawMaterials();
+  const items = (data ?? []) as unknown as RawMaterialForm[];
+  const createMaterial = useCreate<RawMaterialForm, RawMaterialForm>("/api/raw-materials", "raw-materials");
+  const updateMaterial = useUpdate<RawMaterialForm, RawMaterialForm>("/api/raw-materials", "raw-materials");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState<"add" | "edit">("add");
-  const [draft, setDraft] = useState<RawMaterial>(empty);
-  const [deleteTarget, setDeleteTarget] = useState<RawMaterial | null>(null);
+  const [draft, setDraft] = useState<RawMaterialForm>(empty);
+  const [deleteTarget, setDeleteTarget] = useState<RawMaterialForm | null>(null);
 
   const openAdd = () => {
     setMode("add");
@@ -80,13 +76,13 @@ function RawMaterialsPage() {
     setSheetOpen(true);
   };
 
-  const openEdit = (m: RawMaterial) => {
+  const openEdit = (m: RawMaterialForm) => {
     setMode("edit");
     setDraft(m);
     setSheetOpen(true);
   };
 
-  const update = <K extends keyof RawMaterial>(k: K, v: RawMaterial[K]) =>
+  const update = <K extends keyof RawMaterialForm>(k: K, v: RawMaterialForm[K]) =>
     setDraft((d) => ({ ...d, [k]: v }));
 
   const save = (e: React.FormEvent) => {
@@ -95,17 +91,30 @@ function RawMaterialsPage() {
       toast.error("Material name is required");
       return;
     }
-    setItems((prev) =>
-      mode === "add" ? [...prev, draft] : prev.map((p) => (p.id === draft.id ? draft : p)),
-    );
-    toast.success(mode === "add" ? "Raw material added" : "Raw material updated");
-    setSheetOpen(false);
+    if (mode === "add") {
+      createMaterial.mutate(draft, {
+        onSuccess: () => {
+          toast.success("Raw material added");
+          setSheetOpen(false);
+        },
+        onError: () => toast.error("Failed to add raw material"),
+      });
+    } else {
+      updateMaterial.mutate(
+        { id: draft.id, body: draft },
+        {
+          onSuccess: () => {
+            toast.success("Raw material updated");
+            setSheetOpen(false);
+          },
+          onError: () => toast.error("Failed to update raw material"),
+        },
+      );
+    }
   };
 
   const confirmDelete = () => {
-    if (!deleteTarget) return;
-    setItems((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-    toast.success(`Removed ${deleteTarget.name}`);
+    // No delete endpoint available — close the dialog without persisting.
     setDeleteTarget(null);
   };
 

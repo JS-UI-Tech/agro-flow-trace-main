@@ -1,6 +1,8 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
+import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -14,19 +16,35 @@ import {
   Truck,
   Factory,
 } from "lucide-react";
-import { getRun, usePackagingState } from "@/lib/packaging-store";
+import { apiFetch } from "@/lib/api-client";
+
+interface PackagedProduct {
+  id: string;
+  code: string;
+}
+
+interface PackagedBox {
+  id: string;
+  code: string;
+  products: PackagedProduct[];
+}
+
+interface ProductionRun {
+  id: string;
+  code: string;
+  batch: string;
+  product: string;
+  packaging: string;
+  mfg: string;
+  expiry: string;
+  createdAt: string;
+  boxes: PackagedBox[];
+  status: string;
+}
 
 export const Route = createFileRoute("/packaging_/run/$runId")({
   head: () => ({ meta: [{ title: "Production run — AgroTrace" }] }),
   component: RunDetailPage,
-  notFoundComponent: () => (
-    <div className="p-6">
-      <p className="text-sm text-muted-foreground">Production run not found.</p>
-      <Button asChild variant="outline" className="mt-4">
-        <Link to="/packaging">Back to Packaging</Link>
-      </Button>
-    </div>
-  ),
 });
 
 const STEPS = [
@@ -85,17 +103,61 @@ function StatusTimeline({ status }: { status: string }) {
 
 function RunDetailPage() {
   const { runId } = Route.useParams();
-  usePackagingState();
-  const run = getRun(runId);
+  const queryClient = useQueryClient();
   const [activeBoxId, setActiveBoxId] = useState<string | null>(null);
 
-  if (!run) throw notFound();
+  const {
+    data: run,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["packaging-run", runId],
+    queryFn: () => apiFetch<ProductionRun>(`/api/packaging-runs/${runId}`),
+  });
 
+  const statusMutation = useMutation({
+    mutationFn: (status: string) =>
+      apiFetch<ProductionRun>(`/api/packaging-runs/${runId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      }),
+    onSuccess: (_data, status) => {
+      queryClient.invalidateQueries({ queryKey: ["packaging-run", runId] });
+      queryClient.invalidateQueries({ queryKey: ["packaging-runs"] });
+      toast.success("Status updated", { description: `${runId} · ${status}` });
+    },
+    onError: (error) => {
+      toast.error("Failed to update status", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-muted-foreground">Loading production run…</p>
+      </div>
+    );
+  }
+
+  if (isError || !run) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-muted-foreground">Production run not found.</p>
+        <Button asChild variant="outline" className="mt-4">
+          <Link to="/packaging">Back to Packaging</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const boxes = run.boxes ?? [];
   const activeBox =
-    run.boxes.find((b) => b.id === activeBoxId) ??
-    run.boxes[0] ??
+    boxes.find((b) => b.id === activeBoxId) ??
+    boxes[0] ??
     null;
-  const totalUnits = run.boxes.reduce(
+  const totalUnits = boxes.reduce(
     (s, b) => s + b.products.length,
     0,
   );
@@ -114,6 +176,16 @@ function RunDetailPage() {
             </Button>
             <Button onClick={() => window.print()}>
               <Printer className="mr-1 h-4 w-4" /> Print labels
+            </Button>
+            <Button
+              variant="secondary"
+              disabled={
+                statusMutation.isPending ||
+                run.status === "Ready for dispatch"
+              }
+              onClick={() => statusMutation.mutate("Ready for dispatch")}
+            >
+              <CheckCircle2 className="mr-1 h-4 w-4" /> Mark ready
             </Button>
           </>
         }
@@ -179,7 +251,7 @@ function RunDetailPage() {
               </div>
               <div className="flex justify-between border-t border-border pt-2">
                 <dt className="text-muted-foreground">Boxes</dt>
-                <dd className="font-medium">{run.boxes.length}</dd>
+                <dd className="font-medium">{boxes.length}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-muted-foreground">Total units</dt>
@@ -196,7 +268,7 @@ function RunDetailPage() {
               <div className="flex items-center gap-2">
                 <BoxIcon className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold">
-                  Boxes ({run.boxes.length})
+                  Boxes ({boxes.length})
                 </h3>
               </div>
               {activeBox && (
@@ -206,10 +278,10 @@ function RunDetailPage() {
               )}
             </div>
             <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
-              {run.boxes.map((b) => {
+              {boxes.map((b) => {
                 const isActive =
                   b.id === activeBoxId ||
-                  (activeBoxId === null && b.id === run.boxes[0]?.id);
+                  (activeBoxId === null && b.id === boxes[0]?.id);
                 return (
                   <button
                     key={b.id}

@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useRawMaterials } from "@/hooks/api";
+import { useRawMaterials, useCreate } from "@/hooks/api";
 import {
   Sheet,
   SheetContent,
@@ -23,13 +23,43 @@ export const Route = createFileRoute("/storage")({
 
 function StoragePage() {
   const { data: rawMaterials = [] } = useRawMaterials();
+  const createRawMaterial = useCreate("/api/raw-materials", "raw-materials");
   const [intakeOpen, setIntakeOpen] = useState(false);
 
   const handleIntake = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    toast.success(`Received ${data.get("qty") || "0"} ${data.get("uom") || ""} of ${data.get("material") || "material"}`);
-    setIntakeOpen(false);
+    const qty = data.get("qty") || "0";
+    const uom = data.get("uom") || "";
+    const material = data.get("material") || "material";
+    createRawMaterial.mutate(
+      {
+        supplier: data.get("supplier") || "",
+        note: data.get("note") || "",
+        material,
+        lot: data.get("lot") || "",
+        qty: `${qty} ${uom}`.trim(),
+        uom,
+        temp: data.get("temp") || "",
+        harvest: data.get("harvest") || "",
+        expiry: data.get("expiry") || "",
+        vehicle: data.get("vehicle") || "",
+        driver: data.get("driver") || "",
+        location: data.get("location") || "",
+        scan: data.get("scan") || "",
+        status: "Received",
+        receivedAt: new Date().toISOString(),
+      },
+      {
+        onSuccess: () => {
+          toast.success(`Received ${qty} ${uom} of ${material}`);
+          setIntakeOpen(false);
+        },
+        onError: (err: unknown) => {
+          toast.error(err instanceof Error ? err.message : "Failed to receive raw material");
+        },
+      }
+    );
   };
 
   return (

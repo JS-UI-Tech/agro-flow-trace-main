@@ -194,7 +194,7 @@ function RecipesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete recipe?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove {confirmDelete} permanently.
+              Deleting {confirmDelete} is not supported from this screen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

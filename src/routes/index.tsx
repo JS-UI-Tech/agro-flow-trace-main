@@ -29,7 +29,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { KpiCard } from "@/components/KpiCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import { useDashboard } from "@/hooks/api";
+import { useDashboard, useCreate, useUpdate } from "@/hooks/api";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -73,6 +73,9 @@ function Index() {
   const kpis = dash?.kpis;
 
   const [orderOpen, setOrderOpen] = useState(false);
+  const createOrder = useCreate("/api/production-orders", "production-orders");
+  const updateOrder = useUpdate("/api/production-orders", "production-orders");
+  void updateOrder;
 
   const handleExport = () => {
     const rows = [
@@ -102,12 +105,31 @@ function Index() {
   const handleCreateOrder = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const product = formData.get("product") as string;
-    const orderId = `PB-2026-${Math.floor(Math.random() * 900 + 100)}`;
-    toast.success("Production order created", {
-      description: `${orderId} • ${product} scheduled.`,
+    const body = {
+      product: formData.get("product") as string,
+      recipe: formData.get("recipe") as string,
+      line: formData.get("line") as string,
+      qty: Number(formData.get("qty")),
+      unit: formData.get("unit") as string,
+      start: formData.get("start") as string,
+      supervisor: formData.get("supervisor") as string,
+      priority: formData.get("priority") as string,
+      notes: formData.get("notes") as string,
+      createdAt: new Date().toISOString(),
+    };
+    createOrder.mutate(body, {
+      onSuccess: () => {
+        toast.success("Production order created", {
+          description: `${body.product} scheduled.`,
+        });
+        setOrderOpen(false);
+      },
+      onError: (err: unknown) => {
+        toast.error("Failed to create production order", {
+          description: err instanceof Error ? err.message : "Please try again.",
+        });
+      },
     });
-    setOrderOpen(false);
   };
 
   return (
