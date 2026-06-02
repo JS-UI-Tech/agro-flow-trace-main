@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: read
     env:
-      VITE_API_URL: https://agro-trace.jsui.digital
+      VITE_API_URL: https://api.agro-trace.jsui.digital
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

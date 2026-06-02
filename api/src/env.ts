@@ -33,6 +33,11 @@ export const env = {
     .map((o) => o.trim())
     .filter(Boolean),
 
+  // When the frontend and API share a parent domain (e.g. agro-trace.jsui.digital
+  // and api.agro-trace.jsui.digital), set this to ".agro-trace.jsui.digital" so the
+  // session cookie is shared across subdomains (same-site, no third-party cookies).
+  cookieDomain: optional("AUTH_COOKIE_DOMAIN"),
+
   // Optional transactional email (Resend). When absent, emails are logged.
   resendApiKey: optional("RESEND_API_KEY"),
   emailFrom: optional("EMAIL_FROM", "AgroTrace <noreply@agro-trace.jsui.digital>"),

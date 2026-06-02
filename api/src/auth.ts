@@ -66,11 +66,17 @@ export const auth = betterAuth({
 
   advanced: {
     database: { generateId: () => Bun.randomUUIDv7() },
-    // Frontend (Cloudflare) and API (aerocruz) are different sites, so the
-    // session cookie must be cross-site-capable in production.
-    defaultCookieAttributes: env.isProd
-      ? { sameSite: "none", secure: true, httpOnly: true }
-      : { sameSite: "lax", secure: false, httpOnly: true },
+    // When a shared parent domain is configured, the frontend and API are
+    // same-site → use a domain-scoped cookie with SameSite=Lax. Otherwise
+    // (truly cross-site) fall back to SameSite=None;Secure.
+    ...(env.cookieDomain
+      ? { crossSubDomainCookies: { enabled: true, domain: env.cookieDomain } }
+      : {}),
+    defaultCookieAttributes: env.cookieDomain
+      ? { sameSite: "lax", secure: env.isProd, httpOnly: true }
+      : env.isProd
+        ? { sameSite: "none", secure: true, httpOnly: true }
+        : { sameSite: "lax", secure: false, httpOnly: true },
   },
 
   plugins: [
