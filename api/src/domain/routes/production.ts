@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db, productionBatches, finishedGoods, qcChecks } from "../schema";
 import { pool } from "../../db";
 import { auth } from "../../auth";
@@ -90,20 +90,32 @@ const batchSchema = z
   .partial();
 
 productionRouter.get("/production-batches", async (c) => {
-  const rows = await db.select().from(productionBatches).orderBy(desc(productionBatches.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(productionBatches)
+    .where(eq(productionBatches.organizationId, orgId))
+    .orderBy(desc(productionBatches.createdAt));
   return c.json(rows.map(batchOut));
 });
 
 productionRouter.get("/production-batches/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const [row] = await db
     .select()
     .from(productionBatches)
-    .where(eq(productionBatches.id, c.req.param("id")));
+    .where(
+      and(
+        eq(productionBatches.id, c.req.param("id")),
+        eq(productionBatches.organizationId, orgId),
+      ),
+    );
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(batchOut(row));
 });
 
 productionRouter.post("/production-batches", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = batchSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const b = parsed.data;
@@ -112,6 +124,7 @@ productionRouter.post("/production-batches", async (c) => {
     .insert(productionBatches)
     .values({
       id,
+      organizationId: orgId,
       product: b.product,
       recipe: b.recipe,
       line: b.line,
@@ -128,6 +141,7 @@ productionRouter.post("/production-batches", async (c) => {
 });
 
 productionRouter.patch("/production-batches/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = batchSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -145,7 +159,7 @@ productionRouter.patch("/production-batches/:id", async (c) => {
   const [row] = await db
     .update(productionBatches)
     .set(patch)
-    .where(eq(productionBatches.id, id))
+    .where(and(eq(productionBatches.id, id), eq(productionBatches.organizationId, orgId)))
     .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "production_batches", id, c.get("userId" as never));
@@ -169,17 +183,29 @@ const goodsSchema = z
   .partial();
 
 productionRouter.get("/finished-goods", async (c) => {
-  const rows = await db.select().from(finishedGoods).orderBy(desc(finishedGoods.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(finishedGoods)
+    .where(eq(finishedGoods.organizationId, orgId))
+    .orderBy(desc(finishedGoods.createdAt));
   return c.json(rows.map(goodsOut));
 });
 
 productionRouter.get("/finished-goods/:id", async (c) => {
-  const [row] = await db.select().from(finishedGoods).where(eq(finishedGoods.id, c.req.param("id")));
+  const orgId = c.get("orgId") as string;
+  const [row] = await db
+    .select()
+    .from(finishedGoods)
+    .where(
+      and(eq(finishedGoods.id, c.req.param("id")), eq(finishedGoods.organizationId, orgId)),
+    );
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(goodsOut(row));
 });
 
 productionRouter.post("/finished-goods", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = goodsSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const g = parsed.data;
@@ -188,6 +214,7 @@ productionRouter.post("/finished-goods", async (c) => {
     .insert(finishedGoods)
     .values({
       id,
+      organizationId: orgId,
       product: g.product,
       batch: g.batch,
       qty: g.qty,
@@ -202,6 +229,7 @@ productionRouter.post("/finished-goods", async (c) => {
 });
 
 productionRouter.patch("/finished-goods/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = goodsSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -214,7 +242,11 @@ productionRouter.patch("/finished-goods/:id", async (c) => {
   if (g.mfg !== undefined) patch.mfg = g.mfg;
   if (g.expiry !== undefined) patch.expiry = g.expiry;
   if (g.status !== undefined) patch.status = g.status;
-  const [row] = await db.update(finishedGoods).set(patch).where(eq(finishedGoods.id, id)).returning();
+  const [row] = await db
+    .update(finishedGoods)
+    .set(patch)
+    .where(and(eq(finishedGoods.id, id), eq(finishedGoods.organizationId, orgId)))
+    .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "finished_goods", id, c.get("userId" as never));
   return c.json(goodsOut(row));
@@ -237,17 +269,27 @@ const qcSchema = z
   .partial();
 
 productionRouter.get("/qc-checks", async (c) => {
-  const rows = await db.select().from(qcChecks).orderBy(desc(qcChecks.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(qcChecks)
+    .where(eq(qcChecks.organizationId, orgId))
+    .orderBy(desc(qcChecks.createdAt));
   return c.json(rows.map(qcOut));
 });
 
 productionRouter.get("/qc-checks/:id", async (c) => {
-  const [row] = await db.select().from(qcChecks).where(eq(qcChecks.id, c.req.param("id")));
+  const orgId = c.get("orgId") as string;
+  const [row] = await db
+    .select()
+    .from(qcChecks)
+    .where(and(eq(qcChecks.id, c.req.param("id")), eq(qcChecks.organizationId, orgId)));
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(qcOut(row));
 });
 
 productionRouter.post("/qc-checks", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = qcSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const q = parsed.data;
@@ -256,6 +298,7 @@ productionRouter.post("/qc-checks", async (c) => {
     .insert(qcChecks)
     .values({
       id,
+      organizationId: orgId,
       batch: q.batch,
       checkpoint: q.checkpoint,
       value: q.value,
@@ -270,6 +313,7 @@ productionRouter.post("/qc-checks", async (c) => {
 });
 
 productionRouter.patch("/qc-checks/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = qcSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -282,7 +326,11 @@ productionRouter.patch("/qc-checks/:id", async (c) => {
   if (q.inspector !== undefined) patch.inspector = q.inspector;
   if (q.time !== undefined) patch.time = q.time;
   if (q.status !== undefined) patch.status = q.status;
-  const [row] = await db.update(qcChecks).set(patch).where(eq(qcChecks.id, id)).returning();
+  const [row] = await db
+    .update(qcChecks)
+    .set(patch)
+    .where(and(eq(qcChecks.id, id), eq(qcChecks.organizationId, orgId)))
+    .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "qc_checks", id, c.get("userId" as never));
   return c.json(qcOut(row));

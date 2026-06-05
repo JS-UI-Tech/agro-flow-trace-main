@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db, productionBatches } from "../schema";
 import { pool } from "../../db";
 import { auth } from "../../auth";
@@ -48,6 +48,7 @@ function batchOut(r: typeof productionBatches.$inferSelect) {
 }
 
 dashboardRouter.get("/dashboard", async (c) => {
+  const orgId = c.get("orgId") as string;
   const now = Date.now();
 
   // ── KPIs (real counts; guard against nulls) ──────────────────────────────
@@ -62,32 +63,32 @@ dashboardRouter.get("/dashboard", async (c) => {
     expiringStock,
   ] = await Promise.all([
     pool
-      .query(`SELECT count(*)::int AS n FROM production_batches WHERE status ILIKE 'In Process'`)
+      .query(`SELECT count(*)::int AS n FROM production_batches WHERE status ILIKE 'In Process' AND organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT count(*)::int AS n FROM finished_goods WHERE status ILIKE 'Pending QC'`)
+      .query(`SELECT count(*)::int AS n FROM finished_goods WHERE status ILIKE 'Pending QC' AND organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT count(*)::int AS n FROM recalls WHERE status ILIKE 'Open'`)
+      .query(`SELECT count(*)::int AS n FROM recalls WHERE status ILIKE 'Open' AND organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT count(*)::int AS n FROM qc_checks WHERE status ILIKE 'Fail'`)
+      .query(`SELECT count(*)::int AS n FROM qc_checks WHERE status ILIKE 'Fail' AND organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT count(*)::int AS n FROM raw_materials`)
+      .query(`SELECT count(*)::int AS n FROM raw_materials WHERE organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT COALESCE(sum(qty_num), 0)::float AS n FROM dispatches`)
+      .query(`SELECT COALESCE(sum(qty_num), 0)::float AS n FROM dispatches WHERE organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT rejection FROM suppliers`)
+      .query(`SELECT rejection FROM suppliers WHERE organization_id = $1`, [orgId])
       .then((r) => {
         const vals = r.rows.map((row) => leadingNum(row.rejection)).filter((n) => !Number.isNaN(n));
         if (!vals.length) return 0;
         return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10;
       }),
     pool
-      .query(`SELECT expiry, status FROM finished_goods`)
+      .query(`SELECT expiry, status FROM finished_goods WHERE organization_id = $1`, [orgId])
       .then((r) =>
         r.rows.filter((row) => {
           const d = daysUntil(row.expiry, now);
@@ -102,9 +103,10 @@ dashboardRouter.get("/dashboard", async (c) => {
     .query(
       `SELECT product, COALESCE(sum(yield_num), 0)::float AS volume
          FROM production_batches
-        WHERE product IS NOT NULL
+        WHERE product IS NOT NULL AND organization_id = $1
         GROUP BY product
         ORDER BY volume DESC`,
+      [orgId],
     )
     .then((r) => r.rows.map((row) => ({ product: row.product, volume: row.volume ?? 0 })));
 
@@ -114,12 +116,14 @@ dashboardRouter.get("/dashboard", async (c) => {
       `SELECT
          count(*) FILTER (WHERE status ILIKE 'Pass')::int AS pass,
          count(*) FILTER (WHERE status ILIKE 'Fail')::int AS fail
-       FROM qc_checks`,
+       FROM qc_checks
+       WHERE organization_id = $1`,
+      [orgId],
     )
     .then((r) => [{ day: "All", pass: r.rows[0]?.pass ?? 0, fail: r.rows[0]?.fail ?? 0 }]);
 
   // ── expiryRisk: bucket finished_goods by expiry vs now ────────────────────
-  const expiryRisk = await pool.query(`SELECT expiry, status FROM finished_goods`).then((r) => {
+  const expiryRisk = await pool.query(`SELECT expiry, status FROM finished_goods WHERE organization_id = $1`, [orgId]).then((r) => {
     let critical = 0;
     let warning = 0;
     let safe = 0;
@@ -147,9 +151,10 @@ dashboardRouter.get("/dashboard", async (c) => {
     .query(
       `SELECT customer, COALESCE(sum(qty_num), 0)::float AS volume
          FROM dispatches
-        WHERE customer IS NOT NULL
+        WHERE customer IS NOT NULL AND organization_id = $1
         GROUP BY customer
         ORDER BY volume DESC`,
+      [orgId],
     )
     .then((r) => r.rows.map((row) => ({ customer: row.customer, volume: row.volume ?? 0 })));
 
@@ -158,9 +163,10 @@ dashboardRouter.get("/dashboard", async (c) => {
     .query(
       `SELECT reason, COALESCE(sum(qty_num), 0)::float AS value
          FROM waste_records
-        WHERE reason IS NOT NULL
+        WHERE reason IS NOT NULL AND organization_id = $1
         GROUP BY reason
         ORDER BY value DESC`,
+      [orgId],
     )
     .then((r) => r.rows.map((row) => ({ reason: row.reason, value: row.value ?? 0 })));
 
@@ -168,6 +174,7 @@ dashboardRouter.get("/dashboard", async (c) => {
   const recentBatches = await db
     .select()
     .from(productionBatches)
+    .where(eq(productionBatches.organizationId, orgId))
     .orderBy(desc(productionBatches.createdAt))
     .limit(4)
     .then((rows) => rows.map(batchOut));

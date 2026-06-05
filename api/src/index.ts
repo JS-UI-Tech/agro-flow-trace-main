@@ -5,7 +5,7 @@ import { env } from "./env";
 import { dbHealthCheck } from "./db";
 import { redisHealthCheck } from "./redis";
 import { seedAdmin } from "./seed-admin";
-import { domainRouter, migrateDomain, seedDomain } from "./domain";
+import { domainRouter, migrateDomain, seedDomain, bootstrapJsuiOrg } from "./domain";
 
 const app = new Hono();
 
@@ -55,6 +55,7 @@ if (await dbHealthCheck()) {
 await migrateDomain();
 await seedDomain();
 await seedAdmin();
+await bootstrapJsuiOrg();
 
 const server = Bun.serve({
   port: env.port,

@@ -251,4 +251,16 @@ export async function migrateDomain(): Promise<void> {
   await pool.query(`ALTER TABLE workflow_instances ADD COLUMN IF NOT EXISTS step_data jsonb DEFAULT '{}'::jsonb`);
   await pool.query(`ALTER TABLE company_config ADD COLUMN IF NOT EXISTS data jsonb DEFAULT '{}'::jsonb`);
   await pool.query(`ALTER TABLE company_config ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now()`);
+
+  // Multi-tenancy: every domain table is scoped by organization_id.
+  const tenantTables = [
+    "suppliers", "raw_materials", "production_batches", "finished_goods",
+    "dispatches", "recalls", "qc_checks", "waste_records", "returns",
+    "recipes", "production_orders", "packaging_runs", "workflow_templates",
+    "workflow_instances", "company_config",
+  ];
+  for (const t of tenantTables) {
+    await pool.query(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS organization_id text`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_${t}_org ON ${t} (organization_id)`);
+  }
 }

@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { admin, twoFactor, emailOTP, openAPI } from "better-auth/plugins";
+import { admin, twoFactor, emailOTP, openAPI, organization } from "better-auth/plugins";
 import pg from "pg";
 import { env } from "./env";
 import { secondaryStorage } from "./redis";
@@ -106,6 +106,19 @@ export const auth = betterAuth({
           to: email,
           subject: `Your AgroTrace ${label} code`,
           text: `Your ${label} code is: ${otp}\nIt expires in 10 minutes.`,
+        });
+      },
+    }),
+    organization({
+      // Each AgroTrace tenant is an organization; data is isolated per org.
+      // A personal org is auto-created for a user on first sign-in if they
+      // have none (see resolveOrgId in domain/org.ts), so new accounts start
+      // with an empty, isolated workspace.
+      sendInvitationEmail: async (data) => {
+        await sendEmail({
+          to: data.email,
+          subject: `You're invited to ${data.organization.name} on AgroTrace`,
+          text: `${data.inviter.user.name || data.inviter.user.email} invited you to join ${data.organization.name}. Accept: ${env.authUrl}/accept-invitation/${data.id}`,
         });
       },
     }),

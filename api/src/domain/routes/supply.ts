@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db, suppliers, rawMaterials } from "../schema";
 import { auth } from "../../auth";
 import { pool } from "../../db";
@@ -47,31 +47,47 @@ const supplierSchema = z
   .strip();
 
 supplyRouter.get("/suppliers", async (c) => {
-  const rows = await db.select().from(suppliers).orderBy(desc(suppliers.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(suppliers)
+    .where(eq(suppliers.organizationId, orgId))
+    .orderBy(desc(suppliers.createdAt));
   return c.json(rows.map(toSupplier));
 });
 
 supplyRouter.get("/suppliers/:id", async (c) => {
-  const [row] = await db.select().from(suppliers).where(eq(suppliers.id, c.req.param("id"))).limit(1);
+  const orgId = c.get("orgId") as string;
+  const [row] = await db
+    .select()
+    .from(suppliers)
+    .where(and(eq(suppliers.id, c.req.param("id")), eq(suppliers.organizationId, orgId)))
+    .limit(1);
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(toSupplier(row));
 });
 
 supplyRouter.post("/suppliers", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = supplierSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: "Invalid body", details: parsed.error.flatten() }, 400);
   const id = parsed.data.id ?? `SUP-${Date.now()}`;
-  const [row] = await db.insert(suppliers).values({ ...parsed.data, id }).returning();
+  const [row] = await db.insert(suppliers).values({ ...parsed.data, id, organizationId: orgId }).returning();
   await audit("create", "suppliers", id, c.get("userId"));
   return c.json(toSupplier(row), 201);
 });
 
 supplyRouter.patch("/suppliers/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = supplierSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: "Invalid body", details: parsed.error.flatten() }, 400);
   const id = c.req.param("id");
   const { id: _ignore, ...values } = parsed.data;
-  const [row] = await db.update(suppliers).set(values).where(eq(suppliers.id, id)).returning();
+  const [row] = await db
+    .update(suppliers)
+    .set(values)
+    .where(and(eq(suppliers.id, id), eq(suppliers.organizationId, orgId)))
+    .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "suppliers", id, c.get("userId"));
   return c.json(toSupplier(row));
@@ -106,31 +122,47 @@ const rawMaterialSchema = z
   .strip();
 
 supplyRouter.get("/raw-materials", async (c) => {
-  const rows = await db.select().from(rawMaterials).orderBy(desc(rawMaterials.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(rawMaterials)
+    .where(eq(rawMaterials.organizationId, orgId))
+    .orderBy(desc(rawMaterials.createdAt));
   return c.json(rows.map(toRawMaterial));
 });
 
 supplyRouter.get("/raw-materials/:id", async (c) => {
-  const [row] = await db.select().from(rawMaterials).where(eq(rawMaterials.id, c.req.param("id"))).limit(1);
+  const orgId = c.get("orgId") as string;
+  const [row] = await db
+    .select()
+    .from(rawMaterials)
+    .where(and(eq(rawMaterials.id, c.req.param("id")), eq(rawMaterials.organizationId, orgId)))
+    .limit(1);
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(toRawMaterial(row));
 });
 
 supplyRouter.post("/raw-materials", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = rawMaterialSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: "Invalid body", details: parsed.error.flatten() }, 400);
   const id = parsed.data.id ?? `RM-${Date.now()}`;
-  const [row] = await db.insert(rawMaterials).values({ ...parsed.data, id }).returning();
+  const [row] = await db.insert(rawMaterials).values({ ...parsed.data, id, organizationId: orgId }).returning();
   await audit("create", "raw_materials", id, c.get("userId"));
   return c.json(toRawMaterial(row), 201);
 });
 
 supplyRouter.patch("/raw-materials/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = rawMaterialSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: "Invalid body", details: parsed.error.flatten() }, 400);
   const id = c.req.param("id");
   const { id: _ignore, ...values } = parsed.data;
-  const [row] = await db.update(rawMaterials).set(values).where(eq(rawMaterials.id, id)).returning();
+  const [row] = await db
+    .update(rawMaterials)
+    .set(values)
+    .where(and(eq(rawMaterials.id, id), eq(rawMaterials.organizationId, orgId)))
+    .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "raw_materials", id, c.get("userId"));
   return c.json(toRawMaterial(row));

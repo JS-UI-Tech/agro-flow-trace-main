@@ -11,6 +11,7 @@ export const db = drizzle(pool);
 // ── 1. suppliers ──────────────────────────────────────────────────────────--
 export const suppliers = pgTable("suppliers", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   name: text("name"),
   location: text("location"),
   materials: text("materials"),
@@ -24,6 +25,7 @@ export const suppliers = pgTable("suppliers", {
 // ── 2. raw_materials ──────────────────────────────────────────────────────--
 export const rawMaterials = pgTable("raw_materials", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   material: text("material"),
   supplier: text("supplier"),
   lot: text("lot"),
@@ -39,6 +41,7 @@ export const rawMaterials = pgTable("raw_materials", {
 // JSON keys start/end/yield map to safe column names start_at/end_at/yield_text.
 export const productionBatches = pgTable("production_batches", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   product: text("product"),
   recipe: text("recipe"),
   line: text("line"),
@@ -56,6 +59,7 @@ export const productionBatches = pgTable("production_batches", {
 // ── 4. finished_goods ─────────────────────────────────────────────────────--
 export const finishedGoods = pgTable("finished_goods", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   product: text("product"),
   batch: text("batch"),
   qty: text("qty"),
@@ -70,6 +74,7 @@ export const finishedGoods = pgTable("finished_goods", {
 // ── 5. dispatches ─────────────────────────────────────────────────────────--
 export const dispatches = pgTable("dispatches", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   customer: text("customer"),
   product: text("product"),
   qty: text("qty"),
@@ -85,6 +90,7 @@ export const dispatches = pgTable("dispatches", {
 // ── 6. recalls ────────────────────────────────────────────────────────────--
 export const recalls = pgTable("recalls", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   product: text("product"),
   batch: text("batch"),
   reason: text("reason"),
@@ -99,6 +105,7 @@ export const recalls = pgTable("recalls", {
 // ── 7. qc_checks ──────────────────────────────────────────────────────────--
 export const qcChecks = pgTable("qc_checks", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   batch: text("batch"),
   checkpoint: text("checkpoint"),
   value: text("value"),
@@ -112,6 +119,7 @@ export const qcChecks = pgTable("qc_checks", {
 // ── 8. waste_records ──────────────────────────────────────────────────────--
 export const wasteRecords = pgTable("waste_records", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   source: text("source"),
   material: text("material"),
   qty: text("qty"),
@@ -126,6 +134,7 @@ export const wasteRecords = pgTable("waste_records", {
 // ── 9. returns ────────────────────────────────────────────────────────────--
 export const returns = pgTable("returns", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   customer: text("customer"),
   product: text("product"),
   batch: text("batch"),
@@ -140,6 +149,7 @@ export const returns = pgTable("returns", {
 // JSON key "yield" maps to safe column name yield_text. Nested arrays as jsonb.
 export const recipes = pgTable("recipes", {
   code: text("code").primaryKey(),
+  organizationId: text("organization_id"),
   product: text("product"),
   version: text("version"),
   yieldText: text("yield_text"),
@@ -154,6 +164,7 @@ export const recipes = pgTable("recipes", {
 // JSON key "recipeCode" maps to column recipe_code.
 export const productionOrders = pgTable("production_orders", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   product: text("product"),
   recipeCode: text("recipe_code"),
   line: text("line"),
@@ -167,6 +178,7 @@ export const productionOrders = pgTable("production_orders", {
 // Nested boxes/products tree stored as jsonb.
 export const packagingRuns = pgTable("packaging_runs", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   code: text("code"),
   batch: text("batch"),
   product: text("product"),
@@ -182,6 +194,7 @@ export const packagingRuns = pgTable("packaging_runs", {
 // steps is an array of step keys stored as jsonb.
 export const workflowTemplates = pgTable("workflow_templates", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   name: text("name"),
   description: text("description"),
   category: text("category"),
@@ -193,6 +206,7 @@ export const workflowTemplates = pgTable("workflow_templates", {
 // JSON keys templateId/currentStep/stepData map to template_id/current_step/step_data.
 export const workflowInstances = pgTable("workflow_instances", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id"),
   templateId: text("template_id"),
   assignee: text("assignee"),
   reference: text("reference"),
@@ -206,6 +220,7 @@ export const workflowInstances = pgTable("workflow_instances", {
 // Single config row keyed by id (default 'default').
 export const companyConfig = pgTable("company_config", {
   id: text("id").primaryKey().default("default"),
+  organizationId: text("organization_id"),
   data: jsonb("data").$type<Record<string, unknown>>().default({}),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

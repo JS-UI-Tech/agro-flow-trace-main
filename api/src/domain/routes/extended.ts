@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   db,
   recipes,
@@ -86,17 +86,27 @@ const recipeSchema = z
   .partial();
 
 extendedRouter.get("/recipes", async (c) => {
-  const rows = await db.select().from(recipes).orderBy(desc(recipes.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(recipes)
+    .where(eq(recipes.organizationId, orgId))
+    .orderBy(desc(recipes.createdAt));
   return c.json(rows.map(recipeOut));
 });
 
 extendedRouter.get("/recipes/:id", async (c) => {
-  const [row] = await db.select().from(recipes).where(eq(recipes.code, c.req.param("id")));
+  const orgId = c.get("orgId") as string;
+  const [row] = await db
+    .select()
+    .from(recipes)
+    .where(and(eq(recipes.code, c.req.param("id")), eq(recipes.organizationId, orgId)));
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(recipeOut(row));
 });
 
 extendedRouter.post("/recipes", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = recipeSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const r = parsed.data;
@@ -112,6 +122,7 @@ extendedRouter.post("/recipes", async (c) => {
       status: r.status,
       ingredients: r.ingredients ?? [],
       steps: r.steps ?? [],
+      organizationId: orgId,
     })
     .returning();
   await audit("create", "recipes", code, c.get("userId" as never));
@@ -119,6 +130,7 @@ extendedRouter.post("/recipes", async (c) => {
 });
 
 extendedRouter.patch("/recipes/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const code = c.req.param("id");
   const parsed = recipeSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -131,7 +143,11 @@ extendedRouter.patch("/recipes/:id", async (c) => {
   if (r.status !== undefined) patch.status = r.status;
   if (r.ingredients !== undefined) patch.ingredients = r.ingredients;
   if (r.steps !== undefined) patch.steps = r.steps;
-  const [row] = await db.update(recipes).set(patch).where(eq(recipes.code, code)).returning();
+  const [row] = await db
+    .update(recipes)
+    .set(patch)
+    .where(and(eq(recipes.code, code), eq(recipes.organizationId, orgId)))
+    .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "recipes", code, c.get("userId" as never));
   return c.json(recipeOut(row));
@@ -165,20 +181,29 @@ const orderSchema = z
   .partial();
 
 extendedRouter.get("/production-orders", async (c) => {
-  const rows = await db.select().from(productionOrders).orderBy(desc(productionOrders.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(productionOrders)
+    .where(eq(productionOrders.organizationId, orgId))
+    .orderBy(desc(productionOrders.createdAt));
   return c.json(rows.map(orderOut));
 });
 
 extendedRouter.get("/production-orders/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const [row] = await db
     .select()
     .from(productionOrders)
-    .where(eq(productionOrders.id, c.req.param("id")));
+    .where(
+      and(eq(productionOrders.id, c.req.param("id")), eq(productionOrders.organizationId, orgId)),
+    );
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(orderOut(row));
 });
 
 extendedRouter.post("/production-orders", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = orderSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const o = parsed.data;
@@ -193,6 +218,7 @@ extendedRouter.post("/production-orders", async (c) => {
       supervisor: o.supervisor,
       due: o.due,
       status: o.status,
+      organizationId: orgId,
     })
     .returning();
   await audit("create", "production_orders", id, c.get("userId" as never));
@@ -200,6 +226,7 @@ extendedRouter.post("/production-orders", async (c) => {
 });
 
 extendedRouter.patch("/production-orders/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = orderSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -214,7 +241,7 @@ extendedRouter.patch("/production-orders/:id", async (c) => {
   const [row] = await db
     .update(productionOrders)
     .set(patch)
-    .where(eq(productionOrders.id, id))
+    .where(and(eq(productionOrders.id, id), eq(productionOrders.organizationId, orgId)))
     .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "production_orders", id, c.get("userId" as never));
@@ -253,17 +280,27 @@ const runSchema = z
   .partial();
 
 extendedRouter.get("/packaging-runs", async (c) => {
-  const rows = await db.select().from(packagingRuns).orderBy(desc(packagingRuns.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(packagingRuns)
+    .where(eq(packagingRuns.organizationId, orgId))
+    .orderBy(desc(packagingRuns.createdAt));
   return c.json(rows.map(runOut));
 });
 
 extendedRouter.get("/packaging-runs/:id", async (c) => {
-  const [row] = await db.select().from(packagingRuns).where(eq(packagingRuns.id, c.req.param("id")));
+  const orgId = c.get("orgId") as string;
+  const [row] = await db
+    .select()
+    .from(packagingRuns)
+    .where(and(eq(packagingRuns.id, c.req.param("id")), eq(packagingRuns.organizationId, orgId)));
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(runOut(row));
 });
 
 extendedRouter.post("/packaging-runs", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = runSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const r = parsed.data;
@@ -280,6 +317,7 @@ extendedRouter.post("/packaging-runs", async (c) => {
       expiry: r.expiry,
       status: r.status,
       boxes: r.boxes ?? [],
+      organizationId: orgId,
     })
     .returning();
   await audit("create", "packaging_runs", id, c.get("userId" as never));
@@ -287,6 +325,7 @@ extendedRouter.post("/packaging-runs", async (c) => {
 });
 
 extendedRouter.patch("/packaging-runs/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = runSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -303,7 +342,7 @@ extendedRouter.patch("/packaging-runs/:id", async (c) => {
   const [row] = await db
     .update(packagingRuns)
     .set(patch)
-    .where(eq(packagingRuns.id, id))
+    .where(and(eq(packagingRuns.id, id), eq(packagingRuns.organizationId, orgId)))
     .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "packaging_runs", id, c.get("userId" as never));
@@ -334,20 +373,29 @@ const templateSchema = z
   .partial();
 
 extendedRouter.get("/workflow-templates", async (c) => {
-  const rows = await db.select().from(workflowTemplates).orderBy(desc(workflowTemplates.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(workflowTemplates)
+    .where(eq(workflowTemplates.organizationId, orgId))
+    .orderBy(desc(workflowTemplates.createdAt));
   return c.json(rows.map(templateOut));
 });
 
 extendedRouter.get("/workflow-templates/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const [row] = await db
     .select()
     .from(workflowTemplates)
-    .where(eq(workflowTemplates.id, c.req.param("id")));
+    .where(
+      and(eq(workflowTemplates.id, c.req.param("id")), eq(workflowTemplates.organizationId, orgId)),
+    );
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(templateOut(row));
 });
 
 extendedRouter.post("/workflow-templates", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = templateSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const t = parsed.data;
@@ -360,6 +408,7 @@ extendedRouter.post("/workflow-templates", async (c) => {
       description: t.description,
       category: t.category,
       steps: t.steps ?? [],
+      organizationId: orgId,
     })
     .returning();
   await audit("create", "workflow_templates", id, c.get("userId" as never));
@@ -367,6 +416,7 @@ extendedRouter.post("/workflow-templates", async (c) => {
 });
 
 extendedRouter.patch("/workflow-templates/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = templateSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -379,7 +429,7 @@ extendedRouter.patch("/workflow-templates/:id", async (c) => {
   const [row] = await db
     .update(workflowTemplates)
     .set(patch)
-    .where(eq(workflowTemplates.id, id))
+    .where(and(eq(workflowTemplates.id, id), eq(workflowTemplates.organizationId, orgId)))
     .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "workflow_templates", id, c.get("userId" as never));
@@ -414,20 +464,29 @@ const instanceSchema = z
   .partial();
 
 extendedRouter.get("/workflow-instances", async (c) => {
-  const rows = await db.select().from(workflowInstances).orderBy(desc(workflowInstances.createdAt));
+  const orgId = c.get("orgId") as string;
+  const rows = await db
+    .select()
+    .from(workflowInstances)
+    .where(eq(workflowInstances.organizationId, orgId))
+    .orderBy(desc(workflowInstances.createdAt));
   return c.json(rows.map(instanceOut));
 });
 
 extendedRouter.get("/workflow-instances/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const [row] = await db
     .select()
     .from(workflowInstances)
-    .where(eq(workflowInstances.id, c.req.param("id")));
+    .where(
+      and(eq(workflowInstances.id, c.req.param("id")), eq(workflowInstances.organizationId, orgId)),
+    );
   if (!row) return c.json({ error: "Not found" }, 404);
   return c.json(instanceOut(row));
 });
 
 extendedRouter.post("/workflow-instances", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = instanceSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const i = parsed.data;
@@ -442,6 +501,7 @@ extendedRouter.post("/workflow-instances", async (c) => {
       status: i.status,
       currentStep: i.currentStep ?? 0,
       stepData: i.stepData ?? {},
+      organizationId: orgId,
     })
     .returning();
   await audit("create", "workflow_instances", id, c.get("userId" as never));
@@ -449,6 +509,7 @@ extendedRouter.post("/workflow-instances", async (c) => {
 });
 
 extendedRouter.patch("/workflow-instances/:id", async (c) => {
+  const orgId = c.get("orgId") as string;
   const id = c.req.param("id");
   const parsed = instanceSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
@@ -463,7 +524,7 @@ extendedRouter.patch("/workflow-instances/:id", async (c) => {
   const [row] = await db
     .update(workflowInstances)
     .set(patch)
-    .where(eq(workflowInstances.id, id))
+    .where(and(eq(workflowInstances.id, id), eq(workflowInstances.organizationId, orgId)))
     .returning();
   if (!row) return c.json({ error: "Not found" }, 404);
   await audit("update", "workflow_instances", id, c.get("userId" as never));
@@ -476,26 +537,28 @@ extendedRouter.patch("/workflow-instances/:id", async (c) => {
 const configSchema = z.record(z.any());
 
 extendedRouter.get("/company-config", async (c) => {
+  const orgId = c.get("orgId") as string;
   const [row] = await db
     .select()
     .from(companyConfig)
-    .where(eq(companyConfig.id, "default"));
+    .where(eq(companyConfig.organizationId, orgId));
   return c.json((row?.data as Record<string, unknown>) ?? { sections: [] });
 });
 
 extendedRouter.put("/company-config", async (c) => {
+  const orgId = c.get("orgId") as string;
   const parsed = configSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400);
   const data = parsed.data;
   const [row] = await db
     .insert(companyConfig)
-    .values({ id: "default", data, updatedAt: new Date() })
+    .values({ id: orgId, organizationId: orgId, data, updatedAt: new Date() })
     .onConflictDoUpdate({
       target: companyConfig.id,
       set: { data, updatedAt: new Date() },
     })
     .returning();
-  await audit("update", "company_config", "default", c.get("userId" as never));
+  await audit("update", "company_config", orgId, c.get("userId" as never));
   return c.json((row?.data as Record<string, unknown>) ?? data);
 });
 
@@ -531,6 +594,7 @@ extendedRouter.get("/audit", async (c) => {
 // trace/:code  (pragmatic traceability lookup across the domain tables)
 // ════════════════════════════════════════════════════════════════════════════
 extendedRouter.get("/trace/:code", async (c) => {
+  const orgId = c.get("orgId") as string;
   const code = c.req.param("code");
   const matches: { type: string; record: unknown }[] = [];
   const related: { type: string; record: unknown }[] = [];
@@ -544,12 +608,12 @@ extendedRouter.get("/trace/:code", async (c) => {
     dispatchRows,
     recallRows,
   ] = await Promise.all([
-    db.select().from(suppliers).where(eq(suppliers.id, code)),
-    db.select().from(rawMaterials).where(eq(rawMaterials.id, code)),
-    db.select().from(productionBatches).where(eq(productionBatches.id, code)),
-    db.select().from(finishedGoods).where(eq(finishedGoods.id, code)),
-    db.select().from(dispatches).where(eq(dispatches.id, code)),
-    db.select().from(recalls).where(eq(recalls.id, code)),
+    db.select().from(suppliers).where(and(eq(suppliers.id, code), eq(suppliers.organizationId, orgId))),
+    db.select().from(rawMaterials).where(and(eq(rawMaterials.id, code), eq(rawMaterials.organizationId, orgId))),
+    db.select().from(productionBatches).where(and(eq(productionBatches.id, code), eq(productionBatches.organizationId, orgId))),
+    db.select().from(finishedGoods).where(and(eq(finishedGoods.id, code), eq(finishedGoods.organizationId, orgId))),
+    db.select().from(dispatches).where(and(eq(dispatches.id, code), eq(dispatches.organizationId, orgId))),
+    db.select().from(recalls).where(and(eq(recalls.id, code), eq(recalls.organizationId, orgId))),
   ]);
 
   for (const r of supplierRows) matches.push({ type: "supplier", record: r });
@@ -570,11 +634,11 @@ extendedRouter.get("/trace/:code", async (c) => {
   for (const batchId of batchIds) {
     const [linkedGoods, linkedRecalls, linkedQc, linkedReturns, batchRow] =
       await Promise.all([
-        db.select().from(finishedGoods).where(eq(finishedGoods.batch, batchId)),
-        db.select().from(recalls).where(eq(recalls.batch, batchId)),
-        db.select().from(qcChecks).where(eq(qcChecks.batch, batchId)),
-        db.select().from(productionBatches).where(eq(productionBatches.id, batchId)),
-        db.select().from(packagingRuns).where(eq(packagingRuns.batch, batchId)),
+        db.select().from(finishedGoods).where(and(eq(finishedGoods.batch, batchId), eq(finishedGoods.organizationId, orgId))),
+        db.select().from(recalls).where(and(eq(recalls.batch, batchId), eq(recalls.organizationId, orgId))),
+        db.select().from(qcChecks).where(and(eq(qcChecks.batch, batchId), eq(qcChecks.organizationId, orgId))),
+        db.select().from(productionBatches).where(and(eq(productionBatches.id, batchId), eq(productionBatches.organizationId, orgId))),
+        db.select().from(packagingRuns).where(and(eq(packagingRuns.batch, batchId), eq(packagingRuns.organizationId, orgId))),
       ]);
 
     for (const r of batchRow) related.push({ type: "production_batch", record: r });
@@ -585,7 +649,7 @@ extendedRouter.get("/trace/:code", async (c) => {
         const linkedDispatch = await db
           .select()
           .from(dispatches)
-          .where(eq(dispatches.product, r.product));
+          .where(and(eq(dispatches.product, r.product), eq(dispatches.organizationId, orgId)));
         for (const d of linkedDispatch) related.push({ type: "dispatch", record: d });
       }
     }
@@ -601,6 +665,7 @@ extendedRouter.get("/trace/:code", async (c) => {
 // reports  (computed summaries derived from the domain tables)
 // ════════════════════════════════════════════════════════════════════════════
 extendedRouter.get("/reports", async (c) => {
+  const orgId = c.get("orgId") as string;
   const [
     productionVolume,
     qcCounts,
@@ -609,24 +674,25 @@ extendedRouter.get("/reports", async (c) => {
     supplierRejection,
   ] = await Promise.all([
     pool
-      .query(`SELECT COALESCE(sum(yield_num), 0)::float AS n FROM production_batches`)
+      .query(`SELECT COALESCE(sum(yield_num), 0)::float AS n FROM production_batches WHERE organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
       .query(
         `SELECT
            count(*) FILTER (WHERE status ILIKE 'Pass')::int AS pass,
            count(*)::int AS total
-         FROM qc_checks`,
+         FROM qc_checks WHERE organization_id = $1`,
+        [orgId],
       )
       .then((r) => ({ pass: r.rows[0]?.pass ?? 0, total: r.rows[0]?.total ?? 0 })),
     pool
-      .query(`SELECT COALESCE(sum(qty_num), 0)::float AS n FROM dispatches`)
+      .query(`SELECT COALESCE(sum(qty_num), 0)::float AS n FROM dispatches WHERE organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT COALESCE(sum(qty_num), 0)::float AS n FROM waste_records`)
+      .query(`SELECT COALESCE(sum(qty_num), 0)::float AS n FROM waste_records WHERE organization_id = $1`, [orgId])
       .then((r) => r.rows[0]?.n ?? 0),
     pool
-      .query(`SELECT rejection FROM suppliers`)
+      .query(`SELECT rejection FROM suppliers WHERE organization_id = $1`, [orgId])
       .then((r) => {
         const vals = r.rows.map((row) => leadingNum(row.rejection)).filter((n) => !Number.isNaN(n));
         if (!vals.length) return 0;
